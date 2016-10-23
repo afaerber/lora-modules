@@ -1,1 +1,1 @@
-obj-m := lora.o
+obj-m := sx1276.o

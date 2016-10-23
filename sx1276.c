@@ -84,8 +84,10 @@ static int lora_probe(struct spi_device *spi)
 	}
 
 	ret = lora_write_reg(spi, REG_OPMODE, 0x80);
-	if (ret)
-		dev_warn(&spi->dev, "failed writing opmode");
+	if (ret) {
+		dev_err(&spi->dev, "failed writing opmode");
+		return ret;
+	}
 
 	dev_info(&spi->dev, "LoRa module probed (SX%d)", model);
 
@@ -101,7 +103,8 @@ static int lora_remove(struct spi_device *spi)
 
 #ifdef CONFIG_OF
 static const struct of_device_id lora_dt_ids[] = {
-	{ .compatible = "lora" },
+	{ .compatible = "semtech,sx1272" },
+	{ .compatible = "semtech,sx1276" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, lora_dt_ids);
@@ -109,7 +112,7 @@ MODULE_DEVICE_TABLE(of, lora_dt_ids);
 
 static struct spi_driver lora_spi_driver = {
 	.driver = {
-		.name = "lora",
+		.name = "sx1276",
 		.of_match_table = of_match_ptr(lora_dt_ids),
 	},
 	.probe = lora_probe,
