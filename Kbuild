@@ -1,0 +1,1 @@
+obj-m := lora.o
