@@ -1,3 +1,11 @@
+/*
+ * Semtech SX1276 LoRa transceiver
+ *
+ * Copyright (c) 2016-2017 Andreas Färber
+ *
+ * SPDX-License-Identifier: GPL-2.0+
+ */
+
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -121,6 +129,6 @@ static struct spi_driver lora_spi_driver = {
 
 module_spi_driver(lora_spi_driver);
 
-MODULE_DESCRIPTION("LoRa SPI driver");
+MODULE_DESCRIPTION("SX1276 SPI driver");
 MODULE_AUTHOR("Andreas Färber <afaerber@suse.de>");
 MODULE_LICENSE("GPL");
