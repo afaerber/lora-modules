@@ -86,7 +86,7 @@ static int lora_probe(struct spi_device *spi)
 		if (val == 0x12)
 			model = 1276;
 		else {
-			dev_err(&spi->dev, "transceiver not recognized");
+			dev_err(&spi->dev, "transceiver not recognized (RegVersion = 0x%02x)", (unsigned)val);
 			return -EINVAL;
 		}
 	}
