@@ -63,7 +63,7 @@ static int lora_probe(struct spi_device *spi)
 
 	ret = lora_read_reg(spi, REG_VERSION, &val);
 	if (ret) {
-		dev_warn(&spi->dev, "version read failed");
+		dev_err(&spi->dev, "version read failed");
 		return ret;
 	}
 
