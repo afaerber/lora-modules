@@ -18,15 +18,29 @@ struct rn2483_device {
 	bool saw_cr;
 	void *buf;
 	size_t buflen;
-	struct completion line_comp;
+	struct completion line_recv_comp;
+	struct completion line_read_comp;
 };
 
-static void rn2483_receive_line(struct serdev_device *serdev, const char *sz, size_t len)
+static char *rn2483_readline_timeout(struct rn2483_device *rndev, unsigned long timeout)
 {
-	struct rn2483_device *rndev = serdev_device_get_drvdata(serdev);
+	char *tmp;
+	timeout = wait_for_completion_timeout(&rndev->line_recv_comp, timeout);
+	if (!timeout)
+		return NULL;
+	tmp = devm_kstrdup(&rndev->serdev->dev, rndev->buf, GFP_KERNEL);
+	complete(&rndev->line_read_comp);
+	return tmp;
+}
 
-	dev_info(&serdev->dev, "Received line '%s' (%d)", sz, (int)len);
-	complete(&rndev->line_comp);
+static void rn2483_receive_line(struct rn2483_device *rndev, const char *sz, size_t len)
+{
+	dev_dbg(&rndev->serdev->dev, "Received line '%s' (%d)", sz, (int)len);
+
+	reinit_completion(&rndev->line_read_comp);
+	complete(&rndev->line_recv_comp);
+	wait_for_completion(&rndev->line_read_comp);
+	reinit_completion(&rndev->line_recv_comp);
 }
 
 static int rn2483_receive_buf(struct serdev_device *serdev, const u8 *data, size_t count)
@@ -34,7 +48,7 @@ static int rn2483_receive_buf(struct serdev_device *serdev, const u8 *data, size
 	struct rn2483_device *rndev = serdev_device_get_drvdata(serdev);
 	size_t i;
 
-	dev_info(&serdev->dev, "Receive (%d)", (int)count);
+	dev_dbg(&serdev->dev, "Receive (%d)", (int)count);
 	if (!rndev->buf) {
 		rndev->buf = devm_kmalloc(&serdev->dev, count, GFP_KERNEL);
 		if (!rndev->buf)
@@ -51,14 +65,12 @@ static int rn2483_receive_buf(struct serdev_device *serdev, const u8 *data, size
 
 	for (i = 0; i < count; i++) {
 		if (data[i] == '\r') {
-			dev_info(&serdev->dev, "CR @ %d", (int)i);
 			rndev->saw_cr = true;
 		} else if (data[i] == '\n' && rndev->saw_cr) {
-			dev_info(&serdev->dev, "LF @ %d", (int)i);
 			if (i > 1)
 				memcpy(rndev->buf + rndev->buflen, data, i - 1);
 			((char *)rndev->buf)[rndev->buflen + i - 1] = 0;
-			rn2483_receive_line(serdev, rndev->buf, rndev->buflen + i - 1);
+			rn2483_receive_line(rndev, rndev->buf, rndev->buflen + i - 1);
 			rndev->saw_cr = false;
 			devm_kfree(&serdev->dev, rndev->buf);
 			rndev->buf = NULL;
@@ -80,17 +92,18 @@ static const struct serdev_device_ops rn2483_serdev_client_ops = {
 static int rn2483_probe(struct serdev_device *sdev)
 {
 	struct rn2483_device *rndev;
-	unsigned long timeout;
+	char *line;
 	int ret;
 
-	dev_info(&sdev->dev, "Probed");
+	dev_info(&sdev->dev, "Probing");
 
 	rndev = devm_kzalloc(&sdev->dev, sizeof(struct rn2483_device), GFP_KERNEL);
 	if (!rndev)
 		return -ENOMEM;
 
 	rndev->serdev = sdev;
-	init_completion(&rndev->line_comp);
+	init_completion(&rndev->line_recv_comp);
+	init_completion(&rndev->line_read_comp);
 	serdev_device_set_drvdata(sdev, rndev);
 
 	rndev->reset_gpio = devm_gpiod_get_optional(&sdev->dev, "reset", GPIOD_OUT_LOW);
@@ -102,7 +115,6 @@ static int rn2483_probe(struct serdev_device *sdev)
 		dev_err(&sdev->dev, "Failed to open (%d)", ret);
 		return ret;
 	}
-	else dev_info(&sdev->dev, "Opened");
 
 	if (!sdev->ctrl) {
 		dev_err(&sdev->dev, "!ctrl");
@@ -112,25 +124,39 @@ static int rn2483_probe(struct serdev_device *sdev)
 	serdev_device_set_baudrate(sdev, 57600);
 	serdev_device_set_flow_control(sdev, false);
 
-	dev_info(&sdev->dev, "Enforcing reset");
 	gpiod_set_value_cansleep(rndev->reset_gpio, 0);
 	msleep(5);
 	serdev_device_set_client_ops(sdev, &rn2483_serdev_client_ops);
-	dev_info(&sdev->dev, "Leaving reset");
-	reinit_completion(&rndev->line_comp);
 	gpiod_set_value_cansleep(rndev->reset_gpio, 1);
 	msleep(100);
 
-	timeout = wait_for_completion_timeout(&rndev->line_comp, HZ);
-	if (!timeout) {
+	line = rn2483_readline_timeout(rndev, HZ);
+	if (!line) {
 		dev_err(&sdev->dev, "Timeout");
 		ret = -ETIMEDOUT;
 		goto err_timeout;
 	}
 
-	dev_info(&sdev->dev, "Done");
+	if (!(strlen(line) > 7 && strncmp(line, "RN2483 ", 7) == 0)) {
+		dev_err(&sdev->dev, "Unexpected response '%s'", line);
+		devm_kfree(&sdev->dev, line);
+		ret = -EINVAL;
+		goto err_version;
+	}
+	dev_info(&sdev->dev, "Firmware '%s'", line);
+	devm_kfree(&sdev->dev, line);
+
+	serdev_device_write_buf(sdev, "sys get hweui\r\n", strlen("sys get hweui\r\n"));
+	line = rn2483_readline_timeout(rndev, HZ);
+	if (line) {
+		if (strcmp(line, "invalid_param") != 0)
+			dev_info(&sdev->dev, "HWEUI = %s", line);
+		devm_kfree(&sdev->dev, line);
+	}
 
 	return 0;
+
+err_version:
 err_timeout:
 	gpiod_set_value_cansleep(rndev->reset_gpio, 0);
 	return ret;
@@ -141,6 +167,8 @@ static void rn2483_remove(struct serdev_device *sdev)
 	struct rn2483_device *rndev = serdev_device_get_drvdata(sdev);
 
 	gpiod_set_value_cansleep(rndev->reset_gpio, 0);
+
+	complete(&rndev->line_read_comp);
 
 	serdev_device_close(sdev);
 
