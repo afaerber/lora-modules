@@ -8,13 +8,20 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/spi/spi.h>
 
+#include "lora.h"
+
 #define REG_OPMODE	0x01
 #define REG_VERSION	0x42
+
+struct sx1276_priv {
+	struct lora_priv lora;
+};
 
 static int sx1276_read_reg(struct spi_device *spi, u8 reg, u8 *val)
 {
@@ -31,8 +38,12 @@ static int sx1276_write_reg(struct spi_device *spi, u8 reg, u8 val)
 	return spi_write_then_read(spi, buf, 2, NULL, 0);
 }
 
+static const struct net_device_ops sx1276_netdev_ops =  {
+};
+
 static int sx1276_probe(struct spi_device *spi)
 {
+	struct net_device *netdev;
 	int rst, dio[6], ret, model, i;
 	u8 val;
 
@@ -97,6 +108,20 @@ static int sx1276_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	netdev = alloc_loradev(sizeof(struct sx1276_priv));
+	if (!netdev)
+		return -ENOMEM;
+
+	netdev->netdev_ops = &sx1276_netdev_ops;
+	spi_set_drvdata(spi, netdev);
+	SET_NETDEV_DEV(netdev, &spi->dev);
+
+	ret = register_loradev(netdev);
+	if (ret) {
+		free_loradev(netdev);
+		return ret;
+	}
+
 	dev_info(&spi->dev, "SX1276 module probed (SX%d)", model);
 
 	return 0;
@@ -104,6 +129,11 @@ static int sx1276_probe(struct spi_device *spi)
 
 static int sx1276_remove(struct spi_device *spi)
 {
+	struct net_device *netdev = spi_get_drvdata(spi);
+
+	unregister_loradev(netdev);
+	free_loradev(netdev);
+
 	dev_info(&spi->dev, "SX1276 module removed");
 
 	return 0;

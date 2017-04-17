@@ -10,6 +10,10 @@
 
 #define PF_LORA AF_LORA
 
+#define ARPHRD_LORA 519 /* XXX some unused value for "non ARP hardware" -- include/uapi/linux/if_arp.h */
+
 #define LORA_NPROTO 1
+
+#define LORA_MTU 36 /* XXX smallest maximum payload size? */
 
 #endif
