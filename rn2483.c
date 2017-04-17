@@ -109,6 +109,28 @@ static int rn2483_mac_get_status(struct rn2483_device *rndev, u32 *val)
 	return ret;
 }
 
+static int rn2483_mac_reset_band(struct rn2483_device *rndev, unsigned band)
+{
+	int ret;
+	char *line, *cmd;
+
+	cmd = devm_kasprintf(&rndev->serdev->dev, GFP_KERNEL, "mac reset %u", band);
+	ret = rn2483_send_command_timeout(rndev, cmd, &line, RN2483_CMD_TIMEOUT);
+	devm_kfree(&rndev->serdev->dev, cmd);
+	if (ret)
+		return ret;
+
+	if (strcmp(line, "ok") == 0)
+		ret = 0;
+	else if (strcmp(line, "invalid_param") == 0)
+		ret = -EINVAL;
+	else
+		ret = -EPROTO;
+
+	devm_kfree(&rndev->serdev->dev, line);
+	return ret;
+}
+
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout)
 {
 	timeout = wait_for_completion_timeout(&rndev->line_recv_comp, timeout);
@@ -240,7 +262,7 @@ static int rn2483_probe(struct serdev_device *sdev)
 		goto err_model;
 	if (!(rndev->model == 2483 || rndev->model == 2903)) {
 		dev_err(&sdev->dev, "Unknown model %u", rndev->model);
-		ret = -ENOTSUPP;
+		ret = -EINVAL;
 		goto err_model;
 	}
 	dev_info(&sdev->dev, "Detected RN%u", rndev->model);
@@ -260,7 +282,18 @@ static int rn2483_probe(struct serdev_device *sdev)
 			dev_err(&sdev->dev, "Failed to read band (%d)", ret);
 			goto err_band;
 		}
-		dev_info(&sdev->dev, "Frequency band %u", rndev->band);
+		dev_info(&sdev->dev, "Frequency band %u MHz", rndev->band);
+
+		ret = rn2483_mac_reset_band(rndev, 433);
+		if (ret) {
+			dev_err(&sdev->dev, "Failed to reset band (%d)", ret);
+			goto err_band;
+		}
+		rndev->band = 433;
+
+		ret = rn2483_mac_get_band(rndev, &rndev->band);
+		if (!ret)
+			dev_info(&sdev->dev, "New frequency band: %u MHz", rndev->band);
 		break;
 	case 2903:
 		/* No "mac get band" command available */
