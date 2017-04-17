@@ -140,6 +140,38 @@ static int rn2483_mac_reset_band(struct rn2483_device *rndev, unsigned band)
 	return ret;
 }
 
+static int rn2483_mac_pause(struct rn2483_device *rndev, u32 *max_pause)
+{
+	int ret;
+	char *line;
+
+	mutex_lock(&rndev->cmd_lock);
+	ret = rn2483_send_command_timeout(rndev, "mac pause", &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
+	if (ret)
+		return ret;
+
+	ret = kstrtou32(line, 10, max_pause);
+	devm_kfree(&rndev->serdev->dev, line);
+	return ret;
+}
+
+static int rn2483_mac_resume(struct rn2483_device *rndev)
+{
+	int ret;
+	char *line;
+
+	mutex_lock(&rndev->cmd_lock);
+	ret = rn2483_send_command_timeout(rndev, "mac resume", &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
+	if (ret)
+		return ret;
+
+	ret = (strcmp(line, "ok") == 0) ? 0 : -EPROTO;
+	devm_kfree(&rndev->serdev->dev, line);
+	return ret;
+}
+
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout)
 {
 	timeout = wait_for_completion_timeout(&rndev->line_recv_comp, timeout);
@@ -314,6 +346,16 @@ static int rn2483_probe(struct serdev_device *sdev)
 	ret = rn2483_mac_get_status(rndev, &status);
 	if (!ret)
 		dev_info(&sdev->dev, "MAC status %08x", status);
+
+	if (true) {
+		u32 pause;
+		ret = rn2483_mac_pause(rndev, &pause);
+		if (!ret)
+			dev_info(&sdev->dev, "MAC pausing (0x%08x)", pause);
+		ret = rn2483_mac_resume(rndev);
+		if (!ret)
+			dev_info(&sdev->dev, "MAC resuming");
+	}
 
 	cmd = "mac get sync";
 	mutex_lock(&rndev->cmd_lock);
