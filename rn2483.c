@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/serdev.h>
 
@@ -19,6 +20,7 @@
 struct rn2483_device {
 	struct serdev_device *serdev;
 	struct gpio_desc *reset_gpio;
+	struct net_device *netdev;
 	unsigned model;
 	lora_eui hweui;
 	unsigned band;
@@ -28,6 +30,10 @@ struct rn2483_device {
 	struct completion line_recv_comp;
 	struct completion line_read_comp;
 	struct mutex cmd_lock;
+};
+
+struct rn2483_priv {
+	struct lora_priv lora;
 };
 
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout);
@@ -152,6 +158,9 @@ static int rn2483_mac_resume(struct rn2483_device *rndev)
 	devm_kfree(&rndev->serdev->dev, line);
 	return ret;
 }
+
+static const struct net_device_ops rn2483_net_device_ops = {
+};
 
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout)
 {
@@ -347,8 +356,26 @@ static int rn2483_probe(struct serdev_device *sdev)
 		devm_kfree(&sdev->dev, line);
 	}
 
+	rndev->netdev = alloc_loradev(sizeof(struct rn2483_priv));
+	if (!rndev->netdev) {
+		ret = -ENOMEM;
+		goto err_alloc_netdev;
+	}
+
+	rndev->netdev->netdev_ops = &rn2483_net_device_ops;
+	SET_NETDEV_DEV(rndev->netdev, &sdev->dev);
+
+	ret = register_loradev(rndev->netdev);
+	if (ret)
+		goto err_register_netdev;
+
+	dev_info(&sdev->dev, "Done.");
+
 	return 0;
 
+err_register_netdev:
+	free_loradev(rndev->netdev);
+err_alloc_netdev:
 err_band:
 err_hweui:
 err_model:
@@ -361,6 +388,9 @@ err_timeout:
 static void rn2483_remove(struct serdev_device *sdev)
 {
 	struct rn2483_device *rndev = serdev_device_get_drvdata(sdev);
+
+	unregister_loradev(rndev->netdev);
+	free_loradev(rndev->netdev);
 
 	gpiod_set_value_cansleep(rndev->reset_gpio, 0);
 
