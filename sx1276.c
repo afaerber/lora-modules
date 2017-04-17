@@ -16,13 +16,13 @@
 #define REG_OPMODE	0x01
 #define REG_VERSION	0x42
 
-static int lora_read_reg(struct spi_device *spi, u8 reg, u8 *val)
+static int sx1276_read_reg(struct spi_device *spi, u8 reg, u8 *val)
 {
 	u8 addr = reg & 0x7f;
 	return spi_write_then_read(spi, &addr, 1, val, 1);
 }
 
-static int lora_write_reg(struct spi_device *spi, u8 reg, u8 val)
+static int sx1276_write_reg(struct spi_device *spi, u8 reg, u8 val)
 {
 	u8 buf[2];
 
@@ -31,7 +31,7 @@ static int lora_write_reg(struct spi_device *spi, u8 reg, u8 val)
 	return spi_write_then_read(spi, buf, 2, NULL, 0);
 }
 
-static int lora_probe(struct spi_device *spi)
+static int sx1276_probe(struct spi_device *spi)
 {
 	int rst, dio[6], ret, model, i;
 	u8 val;
@@ -61,7 +61,7 @@ static int lora_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
-	ret = lora_read_reg(spi, REG_VERSION, &val);
+	ret = sx1276_read_reg(spi, REG_VERSION, &val);
 	if (ret) {
 		dev_err(&spi->dev, "version read failed");
 		return ret;
@@ -77,7 +77,7 @@ static int lora_probe(struct spi_device *spi)
 			msleep(5);
 		}
 
-		ret = lora_read_reg(spi, REG_VERSION, &val);
+		ret = sx1276_read_reg(spi, REG_VERSION, &val);
 		if (ret) {
 			dev_err(&spi->dev, "version read failed");
 			return ret;
@@ -91,43 +91,43 @@ static int lora_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = lora_write_reg(spi, REG_OPMODE, 0x80);
+	ret = sx1276_write_reg(spi, REG_OPMODE, 0x80);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing opmode");
 		return ret;
 	}
 
-	dev_info(&spi->dev, "LoRa module probed (SX%d)", model);
+	dev_info(&spi->dev, "SX1276 module probed (SX%d)", model);
 
 	return 0;
 }
 
-static int lora_remove(struct spi_device *spi)
+static int sx1276_remove(struct spi_device *spi)
 {
-	dev_info(&spi->dev, "LoRa module removed");
+	dev_info(&spi->dev, "SX1276 module removed");
 
 	return 0;
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id lora_dt_ids[] = {
+static const struct of_device_id sx1276_dt_ids[] = {
 	{ .compatible = "semtech,sx1272" },
 	{ .compatible = "semtech,sx1276" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, lora_dt_ids);
+MODULE_DEVICE_TABLE(of, sx1276_dt_ids);
 #endif
 
-static struct spi_driver lora_spi_driver = {
+static struct spi_driver sx1276_spi_driver = {
 	.driver = {
 		.name = "sx1276",
-		.of_match_table = of_match_ptr(lora_dt_ids),
+		.of_match_table = of_match_ptr(sx1276_dt_ids),
 	},
-	.probe = lora_probe,
-	.remove = lora_remove,
+	.probe = sx1276_probe,
+	.remove = sx1276_remove,
 };
 
-module_spi_driver(lora_spi_driver);
+module_spi_driver(sx1276_spi_driver);
 
 MODULE_DESCRIPTION("SX1276 SPI driver");
 MODULE_AUTHOR("Andreas Färber <afaerber@suse.de>");
