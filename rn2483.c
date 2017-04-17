@@ -272,7 +272,7 @@ static int rn2483_probe(struct serdev_device *sdev)
 		goto err_model;
 	if (!(rndev->model == 2483 || rndev->model == 2903)) {
 		dev_err(&sdev->dev, "Unknown model %u", rndev->model);
-		ret = -EINVAL;
+		ret = -ENOTSUPP;
 		goto err_model;
 	}
 	dev_info(&sdev->dev, "Detected RN%u", rndev->model);
