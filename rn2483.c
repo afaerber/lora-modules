@@ -46,6 +46,7 @@ struct rn2483_device {
 	size_t buflen;
 	struct completion line_recv_comp;
 	struct completion line_read_comp;
+	struct mutex cmd_lock;
 };
 
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout);
@@ -71,7 +72,9 @@ static int rn2483_sys_get_hweui(struct rn2483_device *rndev, lora_eui *val)
 	int ret;
 	char *line;
 
+	mutex_lock(&rndev->cmd_lock);
 	ret = rn2483_send_command_timeout(rndev, "sys get hweui", &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
 	if (ret)
 		return ret;
 
@@ -85,7 +88,9 @@ static int rn2483_mac_get_band(struct rn2483_device *rndev, uint *val)
 	int ret;
 	char *line;
 
+	mutex_lock(&rndev->cmd_lock);
 	ret = rn2483_send_command_timeout(rndev, "mac get band", &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
 	if (ret)
 		return ret;
 
@@ -100,7 +105,9 @@ static int rn2483_mac_get_status(struct rn2483_device *rndev, u32 *val)
 	int ret;
 	char *line;
 
+	mutex_lock(&rndev->cmd_lock);
 	ret = rn2483_send_command_timeout(rndev, "mac get status", &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
 	if (ret)
 		return ret;
 
@@ -115,7 +122,9 @@ static int rn2483_mac_reset_band(struct rn2483_device *rndev, unsigned band)
 	char *line, *cmd;
 
 	cmd = devm_kasprintf(&rndev->serdev->dev, GFP_KERNEL, "mac reset %u", band);
+	mutex_lock(&rndev->cmd_lock);
 	ret = rn2483_send_command_timeout(rndev, cmd, &line, RN2483_CMD_TIMEOUT);
+	mutex_unlock(&rndev->cmd_lock);
 	devm_kfree(&rndev->serdev->dev, cmd);
 	if (ret)
 		return ret;
@@ -218,6 +227,7 @@ static int rn2483_probe(struct serdev_device *sdev)
 	rndev->serdev = sdev;
 	init_completion(&rndev->line_recv_comp);
 	init_completion(&rndev->line_read_comp);
+	mutex_init(&rndev->cmd_lock);
 	serdev_device_set_drvdata(sdev, rndev);
 
 	rndev->reset_gpio = devm_gpiod_get_optional(&sdev->dev, "reset", GPIOD_OUT_LOW);
@@ -306,7 +316,9 @@ static int rn2483_probe(struct serdev_device *sdev)
 		dev_info(&sdev->dev, "MAC status %08x", status);
 
 	cmd = "mac get sync";
+	mutex_lock(&rndev->cmd_lock);
 	ret = rn2483_send_command_timeout(rndev, cmd, &line, HZ);
+	mutex_unlock(&rndev->cmd_lock);
 	if (!ret) {
 		dev_info(&sdev->dev, "%s => '%s'", cmd, line);
 		devm_kfree(&sdev->dev, line);
