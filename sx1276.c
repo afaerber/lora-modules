@@ -53,7 +53,7 @@ static int sx1276_probe(struct spi_device *spi)
 
 	if (gpio_is_valid(rst)) {
 		gpio_set_value(rst, 1);
-		msleep(100);
+		udelay(100);
 		gpio_set_value(rst, 0);
 		msleep(5);
 	}
@@ -72,7 +72,7 @@ static int sx1276_probe(struct spi_device *spi)
 	else {
 		if (gpio_is_valid(rst)) {
 			gpio_set_value(rst, 0);
-			msleep(100);
+			udelay(100);
 			gpio_set_value(rst, 1);
 			msleep(5);
 		}
