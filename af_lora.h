@@ -18,4 +18,11 @@
 
 #define LORA_MTU 36 /* XXX smallest maximum payload size? */
 
+struct sockaddr_lora {
+	__kernel_sa_family_t lora_family;
+	int lora_ifindex;
+	union {
+	} lora_addr;
+};
+
 #endif

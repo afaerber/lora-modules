@@ -13,6 +13,7 @@
 
 struct raw_sock {
 	struct sock sk;
+	int ifindex;
 };
 
 static inline struct raw_sock *raw_sk(const struct sock *sk)
@@ -20,14 +21,35 @@ static inline struct raw_sock *raw_sk(const struct sock *sk)
 	return (struct raw_sock *)sk;
 }
 
+static int raw_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
+{
+	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
+	struct sock *sk = sock->sk;
+	struct raw_sock *raw = raw_sk(sk);
+
+	if (peer)
+		return -EOPNOTSUPP;
+
+	memset(addr, 0, sizeof(*addr));
+	addr->lora_family = AF_LORA;
+	addr->lora_ifindex = raw->ifindex;
+
+	*len = sizeof(*addr);
+
+	return 0;
+}
+
 static int raw_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
+	struct raw_sock *raw;
 
 	if (!sk)
 		return 0;
 
+	raw = raw_sk(sk);
 	lock_sock(sk);
+	raw->ifindex = 0;
 	sock_orphan(sk);
 	sock->sk = NULL;
 	release_sock(sk);
@@ -43,7 +65,7 @@ static const struct proto_ops raw_ops = {
 	.connect	= sock_no_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.getname	= raw_getname,
 	.poll		= datagram_poll,
 	.ioctl		= sock_no_ioctl,
 	.listen		= sock_no_listen,
@@ -58,7 +80,9 @@ static const struct proto_ops raw_ops = {
 
 static int raw_init(struct sock *sk)
 {
-	//struct raw_sock *raw = raw_sk(sk);
+	struct raw_sock *raw = raw_sk(sk);
+
+	raw->ifindex = 0;
 
 	return 0;
 }
