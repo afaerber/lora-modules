@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/serdev.h>
 
+#include "af_lora.h"
 #include "lora.h"
 
 #define RN2483_CMD_TIMEOUT HZ
@@ -159,7 +160,49 @@ static int rn2483_mac_resume(struct rn2483_device *rndev)
 	return ret;
 }
 
+static netdev_tx_t rn2483_loradev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	if (skb->protocol != htons(ETH_P_LORA)) {
+		kfree_skb(skb);
+		netdev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
+
+	netif_stop_queue(netdev);
+
+	/* TODO */
+	return NETDEV_TX_OK;
+}
+
+static int rn2483_loradev_open(struct net_device *netdev)
+{
+	int ret;
+
+	netdev_dbg(netdev, "%s", __func__);
+
+	ret = open_loradev(netdev);
+	if (ret)
+		return ret;
+
+	netif_start_queue(netdev);
+
+	return 0;
+}
+
+static int rn2483_loradev_stop(struct net_device *netdev)
+{
+	netdev_dbg(netdev, "%s", __func__);
+
+	netif_stop_queue(netdev);
+	close_loradev(netdev);
+
+	return 0;
+}
+
 static const struct net_device_ops rn2483_net_device_ops = {
+	.ndo_open = rn2483_loradev_open,
+	.ndo_stop = rn2483_loradev_stop,
+	.ndo_start_xmit = rn2483_loradev_start_xmit,
 };
 
 static int rn2483_readline_timeout(struct rn2483_device *rndev, char **line, unsigned long timeout)

@@ -11,6 +11,20 @@
 #include "af_lora.h"
 #include "lora.h"
 
+int open_loradev(struct net_device *dev)
+{
+	if (!netif_carrier_ok(dev))
+		netif_carrier_on(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(open_loradev);
+
+void close_loradev(struct net_device *dev)
+{
+}
+EXPORT_SYMBOL_GPL(close_loradev);
+
 static void lora_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_LORA;

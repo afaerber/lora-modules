@@ -12,6 +12,8 @@
 
 #define ARPHRD_LORA 519 /* XXX some unused value for "non ARP hardware" -- include/uapi/linux/if_arp.h */
 
+#define ETH_P_LORA 0x00F9 /* XXX some unused value for "non DIX types" -- include/uapi/linux/if_ether.h */
+
 #define LORA_NPROTO 1
 
 #define LORA_MTU 36 /* XXX smallest maximum payload size? */
