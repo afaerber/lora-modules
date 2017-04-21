@@ -11,45 +11,45 @@
 
 #include "af_lora.h"
 
-struct raw_sock {
+struct dgram_sock {
 	struct sock sk;
 	int ifindex;
 };
 
-static inline struct raw_sock *raw_sk(const struct sock *sk)
+static inline struct dgram_sock *dgram_sk(const struct sock *sk)
 {
-	return (struct raw_sock *)sk;
+	return (struct dgram_sock *)sk;
 }
 
-static int raw_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
+static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
 {
 	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
 	struct sock *sk = sock->sk;
-	struct raw_sock *raw = raw_sk(sk);
+	struct dgram_sock *dgram = dgram_sk(sk);
 
 	if (peer)
 		return -EOPNOTSUPP;
 
 	memset(addr, 0, sizeof(*addr));
 	addr->lora_family = AF_LORA;
-	addr->lora_ifindex = raw->ifindex;
+	addr->lora_ifindex = dgram->ifindex;
 
 	*len = sizeof(*addr);
 
 	return 0;
 }
 
-static int raw_release(struct socket *sock)
+static int dgram_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct raw_sock *raw;
+	struct dgram_sock *dgram;
 
 	if (!sk)
 		return 0;
 
-	raw = raw_sk(sk);
+	dgram = dgram_sk(sk);
 	lock_sock(sk);
-	raw->ifindex = 0;
+	dgram->ifindex = 0;
 	sock_orphan(sk);
 	sock->sk = NULL;
 	release_sock(sk);
@@ -58,14 +58,14 @@ static int raw_release(struct socket *sock)
 	return 0;
 }
 
-static const struct proto_ops raw_ops = {
+static const struct proto_ops dgram_ops = {
 	.family		= PF_LORA,
-	.release	= raw_release,
+	.release	= dgram_release,
 	.bind		= sock_no_bind,
 	.connect	= sock_no_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
-	.getname	= raw_getname,
+	.getname	= dgram_getname,
 	.poll		= datagram_poll,
 	.ioctl		= sock_no_ioctl,
 	.listen		= sock_no_listen,
@@ -78,20 +78,20 @@ static const struct proto_ops raw_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
-static int raw_init(struct sock *sk)
+static int dgram_init(struct sock *sk)
 {
-	struct raw_sock *raw = raw_sk(sk);
+	struct dgram_sock *dgram = dgram_sk(sk);
 
-	raw->ifindex = 0;
+	dgram->ifindex = 0;
 
 	return 0;
 }
 
-static struct proto raw_proto __read_mostly = {
-	.name = "LORA_RAW",
+static struct proto dgram_proto __read_mostly = {
+	.name = "LORA_DGRAM",
 	.owner = THIS_MODULE,
-	.obj_size = sizeof(struct raw_sock),
-	.init = raw_init,
+	.obj_size = sizeof(struct dgram_sock),
+	.init = dgram_init,
 };
 
 static int lora_create(struct net *net, struct socket *sock, int protocol,
@@ -107,9 +107,9 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
-	sock->ops = &raw_ops;
+	sock->ops = &dgram_ops;
 
-	sk = sk_alloc(net, PF_LORA, GFP_KERNEL, &raw_proto, kern);
+	sk = sk_alloc(net, PF_LORA, GFP_KERNEL, &dgram_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 
