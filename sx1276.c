@@ -25,13 +25,13 @@ struct sx1276_priv {
 	struct lora_priv lora;
 };
 
-static int sx1276_read_reg(struct spi_device *spi, u8 reg, u8 *val)
+static int sx1276_read_single(struct spi_device *spi, u8 reg, u8 *val)
 {
 	u8 addr = reg & 0x7f;
 	return spi_write_then_read(spi, &addr, 1, val, 1);
 }
 
-static int sx1276_write_reg(struct spi_device *spi, u8 reg, u8 val)
+static int sx1276_write_single(struct spi_device *spi, u8 reg, u8 val)
 {
 	u8 buf[2];
 
@@ -74,7 +74,7 @@ static int sx1276_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
-	ret = sx1276_read_reg(spi, REG_VERSION, &val);
+	ret = sx1276_read_single(spi, REG_VERSION, &val);
 	if (ret) {
 		dev_err(&spi->dev, "version read failed");
 		return ret;
@@ -90,7 +90,7 @@ static int sx1276_probe(struct spi_device *spi)
 			msleep(5);
 		}
 
-		ret = sx1276_read_reg(spi, REG_VERSION, &val);
+		ret = sx1276_read_single(spi, REG_VERSION, &val);
 		if (ret) {
 			dev_err(&spi->dev, "version read failed");
 			return ret;
@@ -104,7 +104,7 @@ static int sx1276_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = sx1276_write_reg(spi, REG_OPMODE, REG_OPMODE_LONG_RANGE_MODE);
+	ret = sx1276_write_single(spi, REG_OPMODE, REG_OPMODE_LONG_RANGE_MODE);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing opmode");
 		return ret;
