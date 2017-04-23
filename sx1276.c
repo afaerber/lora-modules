@@ -67,7 +67,7 @@ static int sx1276_probe(struct spi_device *spi)
 	for (i = 0; i < 6; i++) {
 		dio[i] = of_get_named_gpio(spi->dev.of_node, "dio-gpios", i);
 		if (dio[i] == -ENOENT)
-			dev_warn(&spi->dev, "DIO%d not available, ignoring", i);
+			dev_dbg(&spi->dev, "DIO%d not available, ignoring", i);
 		else {
 			ret = gpio_direction_input(dio[i]);
 			if (ret)
