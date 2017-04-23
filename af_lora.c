@@ -58,7 +58,7 @@ static int dgram_release(struct socket *sock)
 	return 0;
 }
 
-static const struct proto_ops dgram_ops = {
+static const struct proto_ops dgram_proto_ops = {
 	.family		= PF_LORA,
 	.release	= dgram_release,
 	.bind		= sock_no_bind,
@@ -88,7 +88,7 @@ static int dgram_init(struct sock *sk)
 }
 
 static struct proto dgram_proto __read_mostly = {
-	.name = "LORA_DGRAM",
+	.name = "LoRa",
 	.owner = THIS_MODULE,
 	.obj_size = sizeof(struct dgram_sock),
 	.init = dgram_init,
@@ -107,7 +107,10 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
-	sock->ops = &dgram_ops;
+	if (sock->type != SOCK_DGRAM)
+		return -ESOCKTNOSUPPORT;
+
+	sock->ops = &dgram_proto_ops;
 
 	sk = sk_alloc(net, PF_LORA, GFP_KERNEL, &dgram_proto, kern);
 	if (!sk)
@@ -135,11 +138,24 @@ static const struct net_proto_family lora_net_proto_family = {
 
 static __init int lora_init(void)
 {
+	int ret;
+
 	pr_info("lora: init");
 
-	sock_register(&lora_net_proto_family);
+	ret = proto_register(&dgram_proto, 1);
+	if (ret)
+		goto err_dgram;
+
+	ret = sock_register(&lora_net_proto_family);
+	if (ret)
+		goto err_sock;
 
 	return 0;
+
+err_sock:
+	proto_unregister(&dgram_proto);
+err_dgram:
+	return ret;
 }
 
 static __exit void lora_exit(void)
@@ -147,6 +163,7 @@ static __exit void lora_exit(void)
 	pr_info("lora: exit");
 
 	sock_unregister(PF_LORA);
+	proto_unregister(&dgram_proto);
 }
 
 module_init(lora_init);
