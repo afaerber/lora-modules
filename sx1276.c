@@ -17,9 +17,19 @@
 #include "lora.h"
 
 #define REG_OPMODE	0x01
+#define REG_FR_MSB	0x06
+#define REG_FR_MID	0x07
+#define REG_FR_LSB	0x08
 #define REG_VERSION	0x42
 
-#define REG_OPMODE_LONG_RANGE_MODE	BIT(7)
+#define REG_OPMODE_LONG_RANGE_MODE		BIT(7)
+#define REG_OPMODE_LOW_FREQUENCY_MODE_ON	BIT(3)
+#define REG_OPMODE_MODE_MASK			(0x7 << 0)
+#define REG_OPMODE_MODE_SLEEP			(0x0 << 0)
+#define REG_OPMODE_MODE_STDBY			(0x1 << 0)
+#define REG_OPMODE_MODE_TX			(0x3 << 0)
+#define REG_OPMODE_MODE_RXCONTINUOUS		(0x5 << 0)
+#define REG_OPMODE_MODE_RXSINGLE		(0x6 << 0)
 
 struct sx1276_priv {
 	struct lora_priv lora;
@@ -47,6 +57,7 @@ static int sx1276_probe(struct spi_device *spi)
 {
 	struct net_device *netdev;
 	int rst, dio[6], ret, model, i;
+	u32 freq_xosc, freq_band;
 	u8 val;
 
 	rst = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
@@ -104,9 +115,37 @@ static int sx1276_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = sx1276_write_single(spi, REG_OPMODE, REG_OPMODE_LONG_RANGE_MODE);
+	ret = of_property_read_u32(spi->dev.of_node, "clock-frequency", &freq_xosc);
+	if (ret) {
+		dev_err(&spi->dev, "failed reading clock-frequency");
+		return ret;
+	}
+
+	ret = of_property_read_u32(spi->dev.of_node, "radio-frequency", &freq_band);
+	if (ret) {
+		dev_err(&spi->dev, "failed reading radio-frequency");
+		return ret;
+	}
+
+	val = REG_OPMODE_LONG_RANGE_MODE;
+	if (freq_band < 525000000)
+		val |= REG_OPMODE_LOW_FREQUENCY_MODE_ON;
+	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing opmode");
+		return ret;
+	}
+
+	freq_band = freq_band / freq_xosc * (2 << 19);
+	dev_dbg(&spi->dev, "FRF = %u", freq_band);
+
+	ret = sx1276_write_single(spi, REG_FR_MSB, freq_band >> 16);
+	if (!ret)
+		ret = sx1276_write_single(spi, REG_FR_MID, freq_band >> 8);
+	if (!ret)
+		ret = sx1276_write_single(spi, REG_FR_LSB, freq_band);
+	if (ret) {
+		dev_err(&spi->dev, "failed writing frequency (%d)", ret);
 		return ret;
 	}
 
