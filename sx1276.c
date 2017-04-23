@@ -19,6 +19,8 @@
 #define REG_OPMODE	0x01
 #define REG_VERSION	0x42
 
+#define REG_OPMODE_LONG_RANGE_MODE	BIT(7)
+
 struct sx1276_priv {
 	struct lora_priv lora;
 };
@@ -102,7 +104,7 @@ static int sx1276_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = sx1276_write_reg(spi, REG_OPMODE, 0x80);
+	ret = sx1276_write_reg(spi, REG_OPMODE, REG_OPMODE_LONG_RANGE_MODE);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing opmode");
 		return ret;
