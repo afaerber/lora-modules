@@ -94,6 +94,11 @@ static struct proto dgram_proto __read_mostly = {
 	.init = dgram_init,
 };
 
+static void lora_sock_destruct(struct sock *sk)
+{
+	skb_queue_purge(&sk->sk_receive_queue);
+}
+
 static int lora_create(struct net *net, struct socket *sock, int protocol,
 		       int kern)
 {
@@ -117,6 +122,8 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
+	sk->sk_family = PF_LORA;
+	sk->sk_destruct = lora_sock_destruct;
 
 	if (sk->sk_prot->init) {
 		int ret = sk->sk_prot->init(sk);
