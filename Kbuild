@@ -6,4 +6,6 @@ lora-dev-y := dev.o
 
 obj-m += sx1276.o
 
+ifneq ($(CONFIG_SERIAL_DEV_BUS),)
 obj-m += rn2483.o
+endif
