@@ -14,6 +14,7 @@
 #include <linux/of_gpio.h>
 #include <linux/spi/spi.h>
 
+#include "af_lora.h"
 #include "lora.h"
 
 #define REG_OPMODE	0x01
@@ -50,7 +51,83 @@ static int sx1276_write_single(struct spi_device *spi, u8 reg, u8 val)
 	return spi_write_then_read(spi, buf, 2, NULL, 0);
 }
 
+static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	if (skb->protocol != htons(ETH_P_LORA)) {
+		kfree_skb(skb);
+		netdev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
+
+	netif_stop_queue(netdev);
+
+	/* TODO */
+	return NETDEV_TX_OK;
+}
+
+static int sx1276_loradev_open(struct net_device *netdev)
+{
+	struct spi_device *spi = to_spi_device(netdev->dev.parent);
+	u8 val;
+	int ret;
+
+	netdev_dbg(netdev, "%s", __func__);
+
+	ret = sx1276_read_single(spi, REG_OPMODE, &val);
+	if (ret) {
+		netdev_err(netdev, "Failed to read RegOpMode (%d)", ret);
+		return ret;
+	}
+
+	val &= REG_OPMODE_MODE_MASK;
+	val |= REG_OPMODE_MODE_STDBY;
+	ret = sx1276_write_single(spi, REG_OPMODE, val);
+	if (ret) {
+		netdev_err(netdev, "Failed to write RegOpMode (%d)", ret);
+		return ret;
+	}
+
+	ret = open_loradev(netdev);
+	if (ret)
+		return ret;
+
+	netif_start_queue(netdev);
+
+	return 0;
+}
+
+static int sx1276_loradev_stop(struct net_device *netdev)
+{
+	struct spi_device *spi = to_spi_device(netdev->dev.parent);
+	u8 val;
+	int ret;
+
+	netdev_dbg(netdev, "%s", __func__);
+
+	netif_stop_queue(netdev);
+	close_loradev(netdev);
+
+	ret = sx1276_read_single(spi, REG_OPMODE, &val);
+	if (ret) {
+		netdev_warn(netdev, "Failed to read RegOpMode (%d)", ret);
+		return ret;
+	}
+
+	val &= REG_OPMODE_MODE_MASK;
+	val |= REG_OPMODE_MODE_SLEEP;
+	ret = sx1276_write_single(spi, REG_OPMODE, val);
+	if (ret) {
+		netdev_warn(netdev, "Failed to write RegOpMode (%d)", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops sx1276_netdev_ops =  {
+	.ndo_open = sx1276_loradev_open,
+	.ndo_stop = sx1276_loradev_stop,
+	.ndo_start_xmit = sx1276_loradev_start_xmit,
 };
 
 static int sx1276_probe(struct spi_device *spi)
