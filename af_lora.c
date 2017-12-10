@@ -76,6 +76,11 @@ out:
 	return ret;
 }
 
+static int dgram_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	return -ENOIOCTLCMD;
+}
+
 static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
 {
 	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
@@ -129,7 +134,7 @@ static const struct proto_ops dgram_proto_ops = {
 	.accept		= sock_no_accept,
 	.getname	= dgram_getname,
 	.poll		= datagram_poll,
-	.ioctl		= sock_no_ioctl,
+	.ioctl		= dgram_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_no_setsockopt,
