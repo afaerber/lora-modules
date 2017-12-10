@@ -177,14 +177,19 @@ static void sx1276_tx_work_handler(struct work_struct *ws)
 {
 	struct sx1276_priv *priv = container_of(ws, struct sx1276_priv, tx_work);
 	struct spi_device *spi = priv->spi;
+	struct net_device *netdev = spi_get_drvdata(spi);
 
-	netdev_dbg(priv->lora.dev, "%s\n", __func__);
+	netdev_dbg(netdev, "%s\n", __func__);
 
 	mutex_lock(&priv->spi_lock);
 
 	if (priv->tx_skb) {
 		sx1276_tx(spi, priv->tx_skb->data, priv->tx_skb->data_len);
 		priv->tx_len = 1 + priv->tx_skb->data_len;
+		if (!(netdev->flags & IFF_ECHO) ||
+			priv->tx_skb->pkt_type != PACKET_LOOPBACK ||
+			priv->tx_skb->protocol != htons(ETH_P_LORA))
+			kfree_skb(priv->tx_skb);
 		priv->tx_skb = NULL;
 	}
 
