@@ -115,7 +115,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 
 	ret = sx1276_read_single(spi, REG_DIO_MAPPING1, &val);
 	if (ret) {
-		netdev_err(netdev, "Failed to read RegDioMapping1 (%d)", ret);
+		netdev_err(netdev, "Failed to read RegDioMapping1 (%d)\n", ret);
 		return ret;
 	}
 
@@ -123,13 +123,13 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	val |= 0x1 << 6;
 	ret = sx1276_write_single(spi, REG_DIO_MAPPING1, val);
 	if (ret) {
-		netdev_err(netdev, "Failed to write RegDioMapping1 (%d)", ret);
+		netdev_err(netdev, "Failed to write RegDioMapping1 (%d)\n", ret);
 		return ret;
 	}
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
-		netdev_err(netdev, "Failed to read RegOpMode (%d)", ret);
+		netdev_err(netdev, "Failed to read RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
@@ -137,7 +137,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	val |= REG_OPMODE_MODE_TX;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
-		netdev_err(netdev, "Failed to write RegOpMode (%d)", ret);
+		netdev_err(netdev, "Failed to write RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
@@ -174,11 +174,11 @@ static int sx1276_loradev_open(struct net_device *netdev)
 	u8 val;
 	int ret, irq;
 
-	netdev_dbg(netdev, "%s", __func__);
+	netdev_dbg(netdev, "%s\n", __func__);
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
-		netdev_err(netdev, "Failed to read RegOpMode (%d)", ret);
+		netdev_err(netdev, "Failed to read RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
@@ -186,7 +186,7 @@ static int sx1276_loradev_open(struct net_device *netdev)
 	val |= REG_OPMODE_MODE_STDBY;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
-		netdev_err(netdev, "Failed to write RegOpMode (%d)", ret);
+		netdev_err(netdev, "Failed to write RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
@@ -197,9 +197,9 @@ static int sx1276_loradev_open(struct net_device *netdev)
 	if (gpio_is_valid(priv->dio_gpio[0])) {
 		irq = gpio_to_irq(priv->dio_gpio[0]);
 		if (irq <= 0)
-			netdev_warn(netdev, "Failed to obtain interrupt for DIO0 (%d)", irq);
+			netdev_warn(netdev, "Failed to obtain interrupt for DIO0 (%d)\n", irq);
 		else {
-			netdev_info(netdev, "Succeeded in obtaining interrupt for DIO0");
+			netdev_info(netdev, "Succeeded in obtaining interrupt for DIO0\n");
 			ret = request_irq(irq, sx1276_dio_interrupt, 0, netdev->name, netdev);
 			if (ret) {
 				netdev_err(netdev, "Failed to request interrupt for DIO0 (%d)\n", ret);
@@ -221,13 +221,13 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 	u8 val;
 	int ret, irq;
 
-	netdev_dbg(netdev, "%s", __func__);
+	netdev_dbg(netdev, "%s\n", __func__);
 
 	netif_stop_queue(netdev);
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
-		netdev_warn(netdev, "Failed to read RegOpMode (%d)", ret);
+		netdev_warn(netdev, "Failed to read RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
@@ -235,7 +235,7 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 	val |= REG_OPMODE_MODE_SLEEP;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
-		netdev_warn(netdev, "Failed to write RegOpMode (%d)", ret);
+		netdev_warn(netdev, "Failed to write RegOpMode (%d)\n", ret);
 		return ret;
 	}
 
