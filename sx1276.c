@@ -38,6 +38,8 @@
 #define REG_OPMODE_MODE_RXCONTINUOUS		(0x5 << 0)
 #define REG_OPMODE_MODE_RXSINGLE		(0x6 << 0)
 
+#define REG_DIO_MAPPING1_DIO0_MASK	GENMASK(7, 6)
+
 struct sx1276_priv {
 	struct lora_priv lora;
 	size_t fifosize;
@@ -121,7 +123,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 		return NETDEV_TX_OK;
 	}
 
-	val &= ~GENMASK(7, 6);
+	val &= ~REG_DIO_MAPPING1_DIO0_MASK;
 	val |= 0x1 << 6;
 	ret = sx1276_write_single(spi, REG_DIO_MAPPING1, val);
 	if (ret) {
