@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Semtech SX1276 LoRa transceiver
  *
  * Copyright (c) 2016-2017 Andreas Färber
- *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <linux/delay.h>

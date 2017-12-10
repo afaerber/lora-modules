@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
  * Copyright (c) 2017 Andreas Färber
- *
- * SPDX-License-Identifier: GPL-2.0+ OR MIT
  */
 #ifndef LORA_H
 #define LORA_H

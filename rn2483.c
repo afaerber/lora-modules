@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Microchip RN2483/RN2903
  *
  * Copyright (c) 2017 Andreas Färber
- *
- * SPDX-License-Identifier: GPL-2.0+
  */
 
 #include <linux/delay.h>
