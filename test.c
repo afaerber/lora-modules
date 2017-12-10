@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include "af_lora.h"
+
 #ifndef AF_LORA
 #define AF_LORA 28
 #endif
@@ -16,8 +18,6 @@
 #ifndef PF_LORA
 #define PF_LORA AF_LORA
 #endif
-
-#include "af_lora.h"
 
 int main(void)
 {
