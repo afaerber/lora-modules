@@ -14,6 +14,7 @@ struct dgram_sock {
 	struct sock sk;
 	int ifindex;
 	bool bound;
+	struct notifier_block notifier;
 };
 
 static inline struct dgram_sock *dgram_sk(const struct sock *sk)
@@ -103,6 +104,8 @@ static int dgram_release(struct socket *sock)
 
 	dgram = dgram_sk(sk);
 
+	unregister_netdevice_notifier(&dgram->notifier);
+
 	lock_sock(sk);
 
 	dgram->ifindex = 0;
@@ -137,12 +140,54 @@ static const struct proto_ops dgram_proto_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static int dgram_notifier(struct notifier_block *nb, unsigned long msg, void *ptr)
+{
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct dgram_sock *dgram = container_of(nb, struct dgram_sock, notifier);
+	struct sock *sk = &dgram->sk;
+
+	if (!net_eq(dev_net(netdev), sock_net(sk)))
+		return NOTIFY_DONE;
+
+	if (netdev->type != ARPHRD_LORA)
+		return NOTIFY_DONE;
+
+	if (dgram->ifindex != netdev->ifindex)
+		return NOTIFY_DONE;
+
+	switch (msg) {
+	case NETDEV_UNREGISTER:
+		lock_sock(sk);
+
+		dgram->ifindex = 0;
+		dgram->bound = false;
+
+		release_sock(sk);
+
+		sk->sk_err = ENODEV;
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_error_report(sk);
+		break;
+
+	case NETDEV_DOWN:
+		sk->sk_err = ENETDOWN;
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_error_report(sk);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int dgram_init(struct sock *sk)
 {
 	struct dgram_sock *dgram = dgram_sk(sk);
 
 	dgram->bound = false;
 	dgram->ifindex = 0;
+
+	dgram->notifier.notifier_call = dgram_notifier;
+	register_netdevice_notifier(&dgram->notifier);
 
 	return 0;
 }
