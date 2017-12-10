@@ -49,13 +49,14 @@ int main(void)
 		return 1;
 	}
 
-	char buf[0];
-	int bytes_sent = write(skt, buf, 0);
+	char buf[1];
+	int bytes_sent = write(skt, buf, 1);
 	if (bytes_sent == -1) {
 		int err = errno;
 		printf("write failed: %s\n", strerror(err));
 		return 1;
 	}
+	printf("bytes_sent %d\n", bytes_sent);
 
 	return 0;
 }
