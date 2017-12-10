@@ -214,8 +214,8 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 	if (protocol < 0 || protocol > LORA_NPROTO)
 		return -EINVAL;
 
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
+	/*if (!net_eq(net, &init_net))
+		return -EAFNOSUPPORT;*/
 
 	if (sock->type != SOCK_DGRAM)
 		return -ESOCKTNOSUPPORT;
