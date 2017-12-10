@@ -4,7 +4,7 @@ else
 
 KDIR ?= /lib/modules/`uname -r`/build
 
-all:
+all: test
 	$(MAKE) -C $(KDIR) M=$$PWD
 
 modules_install:
