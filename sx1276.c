@@ -23,6 +23,10 @@
 #define REG_FRF_LSB			0x08
 #define LORA_REG_FIFO_ADDR_PTR		0x0d
 #define LORA_REG_FIFO_TX_BASE_ADDR	0x0e
+#define LORA_REG_IRQ_FLAGS_MASK		0x11
+#define LORA_REG_IRQ_FLAGS		0x12
+#define REG_DIO_MAPPING1		0x40
+#define REG_DIO_MAPPING2		0x41
 #define REG_VERSION			0x42
 
 #define REG_OPMODE_LONG_RANGE_MODE		BIT(7)
@@ -37,6 +41,7 @@
 struct sx1276_priv {
 	struct lora_priv lora;
 	size_t fifosize;
+	int dio_gpio[6];
 };
 
 static int sx1276_read_single(struct spi_device *spi, u8 reg, u8 *val)
@@ -108,6 +113,20 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 		return NETDEV_TX_OK;
 	}
 
+	ret = sx1276_read_single(spi, REG_DIO_MAPPING1, &val);
+	if (ret) {
+		netdev_err(netdev, "Failed to read RegDioMapping1 (%d)", ret);
+		return ret;
+	}
+
+	val &= GENMASK(7, 6);
+	val |= 0x1 << 6;
+	ret = sx1276_write_single(spi, REG_DIO_MAPPING1, val);
+	if (ret) {
+		netdev_err(netdev, "Failed to write RegDioMapping1 (%d)", ret);
+		return ret;
+	}
+
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
 		netdev_err(netdev, "Failed to read RegOpMode (%d)", ret);
@@ -125,11 +144,35 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	return NETDEV_TX_OK;
 }
 
-static int sx1276_loradev_open(struct net_device *netdev)
+static irqreturn_t sx1276_dio_interrupt(int irq, void *dev_id)
 {
+	struct net_device *netdev = dev_id;
 	struct spi_device *spi = to_spi_device(netdev->dev.parent);
 	u8 val;
 	int ret;
+
+	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
+	if (ret) {
+		netdev_err(netdev, "Failed to read RegIrqFlags (%d)\n", ret);
+		return IRQ_NONE;
+	}
+	if (val & BIT(3)) {
+		netdev_info(netdev, "TX done.\n");
+		ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS, BIT(3));
+		if (ret)
+			netdev_warn(netdev, "Failed to write RegIrqFlags (%d)\n", ret);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
+static int sx1276_loradev_open(struct net_device *netdev)
+{
+	struct sx1276_priv *priv = netdev_priv(netdev);
+	struct spi_device *spi = to_spi_device(netdev->dev.parent);
+	u8 val;
+	int ret, irq;
 
 	netdev_dbg(netdev, "%s", __func__);
 
@@ -151,6 +194,21 @@ static int sx1276_loradev_open(struct net_device *netdev)
 	if (ret)
 		return ret;
 
+	if (gpio_is_valid(priv->dio_gpio[0])) {
+		irq = gpio_to_irq(priv->dio_gpio[0]);
+		if (irq <= 0)
+			netdev_warn(netdev, "Failed to obtain interrupt for DIO0 (%d)", irq);
+		else {
+			netdev_info(netdev, "Succeeded in obtaining interrupt for DIO0");
+			ret = request_irq(irq, sx1276_dio_interrupt, 0, netdev->name, netdev);
+			if (ret) {
+				netdev_err(netdev, "Failed to request interrupt for DIO0 (%d)\n", ret);
+				close_loradev(netdev);
+				return ret;
+			}
+		}
+	}
+
 	netif_start_queue(netdev);
 
 	return 0;
@@ -158,14 +216,14 @@ static int sx1276_loradev_open(struct net_device *netdev)
 
 static int sx1276_loradev_stop(struct net_device *netdev)
 {
+	struct sx1276_priv *priv = netdev_priv(netdev);
 	struct spi_device *spi = to_spi_device(netdev->dev.parent);
 	u8 val;
-	int ret;
+	int ret, irq;
 
 	netdev_dbg(netdev, "%s", __func__);
 
 	netif_stop_queue(netdev);
-	close_loradev(netdev);
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
@@ -181,6 +239,14 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 		return ret;
 	}
 
+	if (gpio_is_valid(priv->dio_gpio[0])) {
+		irq = gpio_to_irq(priv->dio_gpio[0]);
+		if (irq > 0)
+			free_irq(irq, netdev);
+	}
+
+	close_loradev(netdev);
+
 	return 0;
 }
 
@@ -193,6 +259,7 @@ static const struct net_device_ops sx1276_netdev_ops =  {
 static int sx1276_probe(struct spi_device *spi)
 {
 	struct net_device *netdev;
+	struct sx1276_priv *priv;
 	int rst, dio[6], ret, model, i;
 	u32 freq_xosc, freq_band;
 	u8 val;
@@ -291,6 +358,11 @@ static int sx1276_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	netdev->netdev_ops = &sx1276_netdev_ops;
+
+	priv = netdev_priv(netdev);
+	for (i = 0; i < 6; i++)
+		priv->dio_gpio[i] = dio[i];
+
 	spi_set_drvdata(spi, netdev);
 	SET_NETDEV_DEV(netdev, &spi->dev);
 
