@@ -21,7 +21,7 @@
 
 int main(void)
 {
-	int skt = socket(PF_LORA, SOCK_DGRAM, 0);
+	int skt = socket(PF_LORA, SOCK_DGRAM, 1);
 	if (skt == -1) {
 		int err = errno;
 		printf("socket failed: %s\n", strerror(err));
