@@ -9,6 +9,7 @@
 #include <net/sock.h>
 
 #include "af_lora.h"
+#include "lora.h"
 
 struct dgram_sock {
 	struct sock sk;
@@ -76,6 +77,107 @@ out:
 	return ret;
 }
 
+static int lora_send(struct sk_buff *skb)
+{
+	int ret;
+
+	skb->protocol = htons(ETH_P_LORA);
+
+	if (unlikely(skb->len > skb->dev->mtu)) {
+		ret = -EMSGSIZE;
+		goto err_msg;
+	}
+
+	if (unlikely(skb->dev->type != ARPHRD_LORA)) {
+		ret = -EPERM;
+		goto err_msg;
+	}
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+
+	if (false) {
+		skb->pkt_type = PACKET_LOOPBACK;
+	} else
+		skb->pkt_type = PACKET_HOST;
+
+	ret = dev_queue_xmit(skb);
+	if (ret > 0)
+		ret = net_xmit_errno(ret);
+	if (ret)
+		goto err_xmit;
+
+	return 0;
+
+err_xmit:
+err_msg:
+	kfree_skb(skb);
+	return ret;
+}
+
+static int dgram_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+{
+	struct sock *sk = sock->sk;
+	struct dgram_sock *dgram = dgram_sk(sk);
+	struct sk_buff *skb;
+	struct net_device *netdev;
+	int ifindex;
+	int ret;
+
+	if (msg->msg_name) {
+		DECLARE_SOCKADDR(struct sockaddr_lora *, addr, msg->msg_name);
+
+		if (msg->msg_namelen < sizeof(*addr))
+			return -EINVAL;
+
+		if (addr->lora_family != AF_LORA)
+			return -EINVAL;
+
+		ifindex = addr->lora_ifindex;
+	} else
+		ifindex = dgram->ifindex;
+
+	netdev = dev_get_by_index(sock_net(sk), ifindex);
+	if (!netdev)
+		return -ENXIO;
+
+	skb = sock_alloc_send_skb(sk, size + sizeof(struct lora_skb_priv),
+				  msg->msg_flags & MSG_DONTWAIT, &ret);
+	if (!skb)
+		goto err_sock_alloc_send_skb;
+
+	lora_skb_reserve(skb);
+	lora_skb_prv(skb)->ifindex = netdev->ifindex;
+
+	ret = memcpy_from_msg(skb_put(skb, size), msg, size);
+	if (ret < 0)
+		goto err_memcpy_from_msg;
+
+	sock_tx_timestamp(sk, /*sk->sk_tsflags,*/ &skb_shinfo(skb)->tx_flags);
+
+	skb->dev = netdev;
+	skb->sk = sk;
+	skb->priority = sk->sk_priority;
+
+	ret = lora_send(skb);
+
+	dev_put(netdev);
+
+	if (ret)
+		return ret;
+
+	return size;
+
+err_memcpy_from_msg:
+	kfree_skb(skb);
+err_sock_alloc_send_skb:
+	dev_put(netdev);
+	return ret;
+}
+
 static int dgram_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
@@ -139,7 +241,7 @@ static const struct proto_ops dgram_proto_ops = {
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_no_setsockopt,
 	.getsockopt	= sock_no_getsockopt,
-	.sendmsg	= sock_no_sendmsg,
+	.sendmsg	= dgram_sendmsg,
 	.recvmsg	= sock_no_recvmsg,
 	.mmap		= sock_no_mmap,
 	.sendpage	= sock_no_sendpage,

@@ -26,6 +26,20 @@ static inline int lora_strtoeui(const char *str, lora_eui *val)
         return 0;
 }
 
+struct lora_skb_priv {
+	int ifindex;
+};
+
+static inline struct lora_skb_priv *lora_skb_prv(struct sk_buff *skb)
+{
+	return (struct lora_skb_priv *)(skb->head);
+}
+
+static inline void lora_skb_reserve(struct sk_buff *skb)
+{
+	skb_reserve(skb, sizeof(struct lora_skb_priv));
+}
+
 struct sk_buff *alloc_lora_skb(struct net_device *dev, u8 **data);
 
 struct net_device *alloc_loradev(int sizeof_priv);

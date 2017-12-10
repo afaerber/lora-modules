@@ -10,20 +10,6 @@
 #include "af_lora.h"
 #include "lora.h"
 
-struct lora_skb_priv {
-	int ifindex;
-};
-
-static inline struct lora_skb_priv *lora_skb_prv(struct sk_buff *skb)
-{
-	return (struct lora_skb_priv *)(skb->head);
-}
-
-static inline void lora_skb_reserve(struct sk_buff *skb)
-{
-	skb_reserve(skb, sizeof(struct lora_skb_priv));
-}
-
 struct sk_buff *alloc_lora_skb(struct net_device *dev, u8 **data)
 {
 	struct sk_buff *skb;
