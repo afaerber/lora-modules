@@ -12,5 +12,9 @@ modules_install:
 
 clean:
 	$(MAKE) -C $(KDIR) M=$$PWD clean
+	@rm -f test
+
+test: test.c
+	$(CC) -o test test.c
 
 endif
