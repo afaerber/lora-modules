@@ -10,6 +10,43 @@
 #include "af_lora.h"
 #include "lora.h"
 
+struct lora_skb_priv {
+	int ifindex;
+};
+
+static inline struct lora_skb_priv *lora_skb_prv(struct sk_buff *skb)
+{
+	return (struct lora_skb_priv *)(skb->head);
+}
+
+static inline void lora_skb_reserve(struct sk_buff *skb)
+{
+	skb_reserve(skb, sizeof(struct lora_skb_priv));
+}
+
+struct sk_buff *alloc_lora_skb(struct net_device *dev, u8 **data)
+{
+	struct sk_buff *skb;
+
+	skb = netdev_alloc_skb(dev, sizeof(struct lora_skb_priv));
+	if (unlikely(!skb))
+		return NULL;
+
+	skb->protocol = htons(ETH_P_LORA);
+	skb->pkt_type = PACKET_BROADCAST;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+
+	lora_skb_reserve(skb);
+	lora_skb_prv(skb)->ifindex = dev->ifindex;
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(alloc_lora_skb);
+
 int open_loradev(struct net_device *dev)
 {
 	if (!netif_carrier_ok(dev))
