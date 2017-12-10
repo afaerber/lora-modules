@@ -53,7 +53,7 @@ static void lora_setup(struct net_device *dev)
 	dev->mtu = LORA_MTU;
 	dev->hard_header_len = 0;
 	dev->addr_len = 0;
-	dev->tx_queue_len = 0;
+	dev->tx_queue_len = 10;
 
 	dev->flags = IFF_NOARP;
 	dev->features = 0;
