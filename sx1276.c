@@ -206,12 +206,12 @@ static int sx1276_loradev_open(struct net_device *netdev)
 			netdev_warn(netdev, "Failed to obtain interrupt for DIO0 (%d)\n", irq);
 		else {
 			netdev_info(netdev, "Succeeded in obtaining interrupt for DIO0\n");
-			ret = request_irq(irq, sx1276_dio_interrupt, 0, netdev->name, netdev);
+			/*ret = request_irq(irq, sx1276_dio_interrupt, 0, netdev->name, netdev);
 			if (ret) {
 				netdev_err(netdev, "Failed to request interrupt for DIO0 (%d)\n", ret);
 				close_loradev(netdev);
 				return ret;
-			}
+			}*/
 		}
 	}
 
@@ -247,8 +247,8 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 
 	if (gpio_is_valid(priv->dio_gpio[0])) {
 		irq = gpio_to_irq(priv->dio_gpio[0]);
-		if (irq > 0)
-			free_irq(irq, netdev);
+		/*if (irq > 0)
+			free_irq(irq, netdev);*/
 	}
 
 	close_loradev(netdev);
