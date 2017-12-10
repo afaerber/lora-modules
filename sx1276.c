@@ -182,6 +182,7 @@ static void sx1276_tx_work_handler(struct work_struct *ws)
 
 	if (priv->tx_skb) {
 		sx1276_tx(spi, priv->tx_skb->data, priv->tx_skb->data_len);
+		priv->tx_len = 1 + priv->tx_skb->data_len;
 		priv->tx_skb = NULL;
 	}
 
