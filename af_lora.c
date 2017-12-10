@@ -211,7 +211,7 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->state = SS_UNCONNECTED;
 
-	if (protocol < 0 || protocol >= LORA_NPROTO)
+	if (protocol < 0 || protocol > LORA_NPROTO)
 		return -EINVAL;
 
 	if (!net_eq(net, &init_net))
