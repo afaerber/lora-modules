@@ -315,8 +315,6 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 		goto err_opmode;
 	}
 
-	mutex_unlock(&priv->spi_lock);
-
 	if (gpio_is_valid(priv->dio_gpio[0])) {
 		irq = gpio_to_irq(priv->dio_gpio[0]);
 		if (irq > 0)
@@ -325,6 +323,15 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 
 	destroy_workqueue(priv->wq);
 	priv->wq = NULL;
+
+	if (priv->tx_skb || priv->tx_len)
+		netdev->stats.tx_errors++;
+	if (priv->tx_skb)
+		dev_kfree_skb(priv->tx_skb);
+	priv->tx_skb = NULL;
+	priv->tx_len = 0;
+
+	mutex_unlock(&priv->spi_lock);
 
 	return 0;
 
