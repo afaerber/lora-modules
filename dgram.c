@@ -79,48 +79,6 @@ out:
 	return ret;
 }
 
-static int lora_send(struct sk_buff *skb)
-{
-	int ret;
-
-	pr_debug("lora: %s\n", __func__);
-
-	skb->protocol = htons(ETH_P_LORA);
-
-	if (unlikely(skb->len > skb->dev->mtu)) {
-		ret = -EMSGSIZE;
-		goto err_msg;
-	}
-
-	if (unlikely(skb->dev->type != ARPHRD_LORA)) {
-		ret = -EPERM;
-		goto err_msg;
-	}
-
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	skb_reset_mac_header(skb);
-	skb_reset_network_header(skb);
-	skb_reset_transport_header(skb);
-
-	if (false) {
-		skb->pkt_type = PACKET_LOOPBACK;
-	} else
-		skb->pkt_type = PACKET_HOST;
-
-	ret = dev_queue_xmit(skb);
-	if (ret > 0)
-		ret = net_xmit_errno(ret);
-	if (ret)
-		return ret;
-
-	return 0;
-
-err_msg:
-	kfree_skb(skb);
-	return ret;
-}
-
 static int dgram_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;

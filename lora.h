@@ -45,6 +45,8 @@ static inline void lora_skb_reserve(struct sk_buff *skb)
 
 struct sk_buff *alloc_lora_skb(struct net_device *dev, u8 **data);
 
+int lora_send(struct sk_buff *skb);
+
 struct net_device *alloc_loradev(int sizeof_priv);
 void free_loradev(struct net_device *dev);
 int register_loradev(struct net_device *dev);
