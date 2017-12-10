@@ -23,7 +23,8 @@ int main(void)
 {
 	int skt = socket(PF_LORA, SOCK_DGRAM, 0);
 	if (skt == -1) {
-		printf("socket failed: %s\n", strerror(errno));
+		int err = errno;
+		printf("socket failed: %s\n", strerror(err));
 		return 1;
 	}
 	printf("socket %d\n", skt);
@@ -32,7 +33,8 @@ int main(void)
 	strcpy(ifr.ifr_name, "lora0");
 	int ret = ioctl(skt, SIOCGIFINDEX, &ifr);
 	if (ret == -1) {
-		printf("ioctl failed: %s\n", strerror(errno));
+		int err = errno;
+		printf("ioctl failed: %s\n", strerror(err));
 		return 1;
 	}
 	printf("ifindex %d\n", ifr.ifr_ifindex);
@@ -42,14 +44,16 @@ int main(void)
 	addr.lora_ifindex = ifr.ifr_ifindex;
 	ret = bind(skt, (struct sockaddr *)&addr, sizeof(addr));
 	if (ret == -1) {
-		printf("bind failed: %s\n", strerror(errno));
+		int err = errno;
+		printf("bind failed: %s\n", strerror(err));
 		return 1;
 	}
 
 	char buf[0];
 	int bytes_sent = write(skt, buf, 0);
 	if (bytes_sent == -1) {
-		printf("write failed: %s\n", strerror(errno));
+		int err = errno;
+		printf("write failed: %s\n", strerror(err));
 		return 1;
 	}
 
