@@ -121,7 +121,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 		return NETDEV_TX_OK;
 	}
 
-	val &= GENMASK(7, 6);
+	val &= ~GENMASK(7, 6);
 	val |= 0x1 << 6;
 	ret = sx1276_write_single(spi, REG_DIO_MAPPING1, val);
 	if (ret) {
@@ -135,7 +135,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 		return NETDEV_TX_OK;
 	}
 
-	val &= REG_OPMODE_MODE_MASK;
+	val &= ~REG_OPMODE_MODE_MASK;
 	val |= REG_OPMODE_MODE_TX;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
@@ -186,7 +186,7 @@ static int sx1276_loradev_open(struct net_device *netdev)
 		return ret;
 	}
 
-	val &= REG_OPMODE_MODE_MASK;
+	val &= ~REG_OPMODE_MODE_MASK;
 	val |= REG_OPMODE_MODE_STDBY;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
@@ -235,7 +235,7 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 		return ret;
 	}
 
-	val &= REG_OPMODE_MODE_MASK;
+	val &= ~REG_OPMODE_MODE_MASK;
 	val |= REG_OPMODE_MODE_SLEEP;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
