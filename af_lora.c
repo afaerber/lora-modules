@@ -112,11 +112,10 @@ static int lora_send(struct sk_buff *skb)
 	if (ret > 0)
 		ret = net_xmit_errno(ret);
 	if (ret)
-		goto err_xmit;
+		return ret;
 
 	return 0;
 
-err_xmit:
 err_msg:
 	kfree_skb(skb);
 	return ret;
