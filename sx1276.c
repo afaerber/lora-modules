@@ -38,6 +38,8 @@
 #define REG_OPMODE_MODE_RXCONTINUOUS		(0x5 << 0)
 #define REG_OPMODE_MODE_RXSINGLE		(0x6 << 0)
 
+#define LORA_REG_IRQ_FLAGS_TX_DONE		BIT(3)
+
 #define REG_DIO_MAPPING1_DIO0_MASK	GENMASK(7, 6)
 
 struct sx1276_priv {
@@ -207,14 +209,14 @@ static irqreturn_t sx1276_dio_interrupt(int irq, void *dev_id)
 		val = 0;
 	}
 
-	if (val & BIT(3)) {
+	if (val & LORA_REG_IRQ_FLAGS_TX_DONE) {
 		netdev_info(netdev, "TX done.\n");
 		netdev->stats.tx_packets++;
 		netdev->stats.tx_bytes += priv->tx_len - 1;
 		priv->tx_len = 0;
 		netif_wake_queue(netdev);
 
-		ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS, BIT(3));
+		ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS, LORA_REG_IRQ_FLAGS_TX_DONE);
 		if (ret)
 			netdev_warn(netdev, "Failed to write RegIrqFlags (%d)\n", ret);
 	}
