@@ -14,7 +14,7 @@ struct sk_buff *alloc_lora_skb(struct net_device *dev, u8 **data)
 {
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb(dev, sizeof(struct lora_skb_priv));
+	skb = netdev_alloc_skb(dev, sizeof(struct lora_skb_priv) + LORA_MTU);
 	if (unlikely(!skb))
 		return NULL;
 
