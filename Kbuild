@@ -1,5 +1,5 @@
 obj-m += lora.o
-lora-y := af_lora.o
+lora-y := af_lora.o dgram.o
 
 obj-m += lora-dev.o
 lora-dev-y := dev.o

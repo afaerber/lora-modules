@@ -26,6 +26,9 @@ static inline int lora_strtoeui(const char *str, lora_eui *val)
         return 0;
 }
 
+extern struct proto dgram_proto;
+extern const struct proto_ops dgram_proto_ops;
+
 struct lora_skb_priv {
 	int ifindex;
 };
