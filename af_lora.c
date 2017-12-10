@@ -156,7 +156,11 @@ static int dgram_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	if (ret < 0)
 		goto err_memcpy_from_msg;
 
-	sock_tx_timestamp(sk, /*sk->sk_tsflags,*/ &skb_shinfo(skb)->tx_flags);
+	sock_tx_timestamp(sk,
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+			  sk->sk_tsflags,
+#endif
+			  &skb_shinfo(skb)->tx_flags);
 
 	skb->dev = netdev;
 	skb->sk = sk;
