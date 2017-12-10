@@ -171,6 +171,23 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 	return 0;
 }
 
+static void sx1276_tx_work_handler(struct work_struct *ws)
+{
+	struct sx1276_priv *priv = container_of(ws, struct sx1276_priv, tx_work);
+	struct spi_device *spi = priv->spi;
+
+	dev_dbg(&spi->dev, "%s\n", __func__);
+
+	mutex_lock(&priv->spi_lock);
+
+	if (priv->tx_skb) {
+		sx1276_tx(spi, priv->tx_skb->data, priv->tx_skb->data_len);
+		priv->tx_skb = NULL;
+	}
+
+	mutex_unlock(&priv->spi_lock);
+}
+
 static irqreturn_t sx1276_dio_interrupt(int irq, void *dev_id)
 {
 	struct net_device *netdev = dev_id;
@@ -204,21 +221,6 @@ static irqreturn_t sx1276_dio_interrupt(int irq, void *dev_id)
 	mutex_unlock(&priv->spi_lock);
 
 	return IRQ_HANDLED;
-}
-
-static void sx1276_tx_work_handler(struct work_struct *ws)
-{
-	struct sx1276_priv *priv = container_of(ws, struct sx1276_priv, tx_work);
-	struct spi_device *spi = priv->spi;
-
-	dev_dbg(&spi->dev, "%s\n", __func__);
-
-	mutex_lock(&priv->spi_lock);
-	if (priv->tx_skb) {
-		sx1276_tx(spi, priv->tx_skb->data, priv->tx_skb->data_len);
-		priv->tx_skb = NULL;
-	}
-	mutex_unlock(&priv->spi_lock);
 }
 
 static int sx1276_loradev_open(struct net_device *netdev)
