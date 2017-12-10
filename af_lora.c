@@ -21,12 +21,17 @@ int lora_send(struct sk_buff *skb)
 
 	if (unlikely(skb->len > skb->dev->mtu)) {
 		ret = -EMSGSIZE;
-		goto err_msg;
+		goto err_skb;
 	}
 
 	if (unlikely(skb->dev->type != ARPHRD_LORA)) {
 		ret = -EPERM;
-		goto err_msg;
+		goto err_skb;
+	}
+
+	if (unlikely(!(skb->dev->flags & IFF_UP))) {
+		ret = -ENETDOWN;
+		goto err_skb;
 	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -48,7 +53,7 @@ int lora_send(struct sk_buff *skb)
 
 	return 0;
 
-err_msg:
+err_skb:
 	kfree_skb(skb);
 	return ret;
 }
