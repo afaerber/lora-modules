@@ -260,7 +260,7 @@ static int sx1276_loradev_open(struct net_device *netdev)
 			netdev_warn(netdev, "Failed to obtain interrupt for DIO0 (%d)\n", irq);
 		else {
 			netdev_info(netdev, "Succeeded in obtaining interrupt for DIO0\n");
-			ret = request_threaded_irq(irq, NULL, sx1276_dio_interrupt, 0, netdev->name, netdev);
+			ret = request_threaded_irq(irq, NULL, sx1276_dio_interrupt, IRQF_ONESHOT, netdev->name, netdev);
 			if (ret) {
 				netdev_err(netdev, "Failed to request interrupt for DIO0 (%d)\n", ret);
 				goto err_irq;
