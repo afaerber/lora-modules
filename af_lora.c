@@ -32,6 +32,8 @@ static int dgram_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 	int ret = 0;
 	bool notify_enetdown = false;
 
+	pr_debug("lora: %s\n", __func__);
+
 	if (len < sizeof(*addr))
 		return -EINVAL;
 
@@ -81,6 +83,8 @@ static int lora_send(struct sk_buff *skb)
 {
 	int ret;
 
+	pr_debug("lora: %s\n", __func__);
+
 	skb->protocol = htons(ETH_P_LORA);
 
 	if (unlikely(skb->len > skb->dev->mtu)) {
@@ -126,6 +130,8 @@ static int dgram_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	struct net_device *netdev;
 	int ifindex;
 	int ret;
+
+	pr_debug("lora: %s\n", __func__);
 
 	if (msg->msg_name) {
 		DECLARE_SOCKADDR(struct sockaddr_lora *, addr, msg->msg_name);
@@ -184,6 +190,8 @@ err_sock_alloc_send_skb:
 
 static int dgram_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
+	pr_debug("lora: %s\n", __func__);
+
 	return -ENOIOCTLCMD;
 }
 
@@ -192,6 +200,8 @@ static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, 
 	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
 	struct sock *sk = sock->sk;
 	struct dgram_sock *dgram = dgram_sk(sk);
+
+	pr_debug("lora: %s\n", __func__);
 
 	if (peer)
 		return -EOPNOTSUPP;
@@ -209,6 +219,8 @@ static int dgram_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct dgram_sock *dgram;
+
+	pr_debug("lora: %s\n", __func__);
 
 	if (!sk)
 		return 0;
@@ -257,6 +269,8 @@ static int dgram_notifier(struct notifier_block *nb, unsigned long msg, void *pt
 	struct dgram_sock *dgram = container_of(nb, struct dgram_sock, notifier);
 	struct sock *sk = &dgram->sk;
 
+	pr_debug("lora: %s\n", __func__);
+
 	if (!net_eq(dev_net(netdev), sock_net(sk)))
 		return NOTIFY_DONE;
 
@@ -294,6 +308,8 @@ static int dgram_init(struct sock *sk)
 {
 	struct dgram_sock *dgram = dgram_sk(sk);
 
+	pr_debug("lora: %s\n", __func__);
+
 	dgram->bound = false;
 	dgram->ifindex = 0;
 
@@ -312,6 +328,8 @@ static struct proto dgram_proto __read_mostly = {
 
 static void lora_sock_destruct(struct sock *sk)
 {
+	pr_debug("lora: %s\n", __func__);
+
 	skb_queue_purge(&sk->sk_receive_queue);
 }
 
@@ -319,6 +337,8 @@ static int lora_create(struct net *net, struct socket *sock, int protocol,
 		       int kern)
 {
 	struct sock *sk;
+
+	pr_debug("lora: %s\n", __func__);
 
 	sock->state = SS_UNCONNECTED;
 
@@ -363,7 +383,7 @@ static __init int lora_init(void)
 {
 	int ret;
 
-	pr_info("lora: init");
+	pr_debug("lora: init\n");
 
 	ret = proto_register(&dgram_proto, 1);
 	if (ret)
@@ -383,7 +403,7 @@ err_dgram:
 
 static __exit void lora_exit(void)
 {
-	pr_info("lora: exit");
+	pr_debug("lora: exit\n");
 
 	sock_unregister(PF_LORA);
 	proto_unregister(&dgram_proto);
