@@ -87,6 +87,8 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	u8 addr, val;
 	int ret;
 
+	netdev_dbg(netdev, "%s\n", __func__);
+
 	if (skb->protocol != htons(ETH_P_LORA)) {
 		kfree_skb(skb);
 		netdev->stats.tx_dropped++;
@@ -150,6 +152,8 @@ static irqreturn_t sx1276_dio_interrupt(int irq, void *dev_id)
 	struct spi_device *spi = to_spi_device(netdev->dev.parent);
 	u8 val;
 	int ret;
+
+	netdev_dbg(netdev, "%s\n", __func__);
 
 	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
 	if (ret) {
