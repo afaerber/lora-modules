@@ -118,7 +118,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	ret = sx1276_read_single(spi, REG_DIO_MAPPING1, &val);
 	if (ret) {
 		netdev_err(netdev, "Failed to read RegDioMapping1 (%d)\n", ret);
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	val &= GENMASK(7, 6);
@@ -126,13 +126,13 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	ret = sx1276_write_single(spi, REG_DIO_MAPPING1, val);
 	if (ret) {
 		netdev_err(netdev, "Failed to write RegDioMapping1 (%d)\n", ret);
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
 		netdev_err(netdev, "Failed to read RegOpMode (%d)\n", ret);
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	val &= REG_OPMODE_MODE_MASK;
@@ -140,7 +140,7 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
 	if (ret) {
 		netdev_err(netdev, "Failed to write RegOpMode (%d)\n", ret);
-		return ret;
+		return NETDEV_TX_OK;
 	}
 
 	return NETDEV_TX_OK;
