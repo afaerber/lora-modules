@@ -80,7 +80,7 @@ static int sx1276_write_fifo(struct spi_device *spi, size_t len, void *val)
 static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct spi_device *spi = to_spi_device(netdev->dev.parent);
-	u8 addr;
+	u8 addr, val;
 	int ret;
 
 	if (skb->protocol != htons(ETH_P_LORA)) {
@@ -109,7 +109,20 @@ static netdev_tx_t sx1276_loradev_start_xmit(struct sk_buff *skb, struct net_dev
 		return NETDEV_TX_OK;
 	}
 
-	/* TODO */
+	ret = sx1276_read_single(spi, REG_OPMODE, &val);
+	if (ret) {
+		netdev_err(netdev, "Failed to read RegOpMode (%d)", ret);
+		return ret;
+	}
+
+	val &= REG_OPMODE_MODE_MASK;
+	val |= REG_OPMODE_MODE_TX;
+	ret = sx1276_write_single(spi, REG_OPMODE, val);
+	if (ret) {
+		netdev_err(netdev, "Failed to write RegOpMode (%d)", ret);
+		return ret;
+	}
+
 	return NETDEV_TX_OK;
 }
 
