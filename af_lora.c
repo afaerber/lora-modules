@@ -13,11 +13,66 @@
 struct dgram_sock {
 	struct sock sk;
 	int ifindex;
+	bool bound;
 };
 
 static inline struct dgram_sock *dgram_sk(const struct sock *sk)
 {
 	return (struct dgram_sock *)sk;
+}
+
+static int dgram_bind(struct socket *sock, struct sockaddr *uaddr, int len)
+{
+	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
+	struct sock *sk = sock->sk;
+	struct dgram_sock *dgram = dgram_sk(sk);
+	int ifindex;
+	int ret = 0;
+	bool notify_enetdown = false;
+
+	if (len < sizeof(*addr))
+		return -EINVAL;
+
+	lock_sock(sk);
+
+	if (dgram->bound && addr->lora_ifindex == dgram->ifindex)
+		goto out;
+
+	if (addr->lora_ifindex) {
+		struct net_device *netdev;
+
+		netdev = dev_get_by_index(sock_net(sk), addr->lora_ifindex);
+		if (!netdev) {
+			ret = -ENODEV;
+			goto out;
+		}
+		if (netdev->type != ARPHRD_LORA) {
+			dev_put(netdev);
+			ret = -ENODEV;
+			goto out;
+		}
+		if (!(netdev->flags & IFF_UP))
+			notify_enetdown = true;
+
+		ifindex = netdev->ifindex;
+
+		dev_put(netdev);
+	} else
+		ifindex = 0;
+
+	dgram->ifindex = ifindex;
+	dgram->bound = true;
+
+out:
+	release_sock(sk);
+
+	if (notify_enetdown) {
+		sk->sk_err = ENETDOWN;
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_error_report(sk);
+	}
+
+	return ret;
 }
 
 static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
@@ -47,10 +102,15 @@ static int dgram_release(struct socket *sock)
 		return 0;
 
 	dgram = dgram_sk(sk);
+
 	lock_sock(sk);
+
 	dgram->ifindex = 0;
+	dgram->bound = false;
+
 	sock_orphan(sk);
 	sock->sk = NULL;
+
 	release_sock(sk);
 	sock_put(sk);
 
@@ -60,7 +120,7 @@ static int dgram_release(struct socket *sock)
 static const struct proto_ops dgram_proto_ops = {
 	.family		= PF_LORA,
 	.release	= dgram_release,
-	.bind		= sock_no_bind,
+	.bind		= dgram_bind,
 	.connect	= sock_no_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
@@ -81,6 +141,7 @@ static int dgram_init(struct sock *sk)
 {
 	struct dgram_sock *dgram = dgram_sk(sk);
 
+	dgram->bound = false;
 	dgram->ifindex = 0;
 
 	return 0;
