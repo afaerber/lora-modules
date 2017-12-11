@@ -445,7 +445,7 @@ static int sx1276_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	val = REG_OPMODE_LONG_RANGE_MODE;
+	val = REG_OPMODE_LONG_RANGE_MODE | REG_OPMODE_MODE_SLEEP;
 	if (freq_band < 525000000)
 		val |= REG_OPMODE_LOW_FREQUENCY_MODE_ON;
 	ret = sx1276_write_single(spi, REG_OPMODE, val);
