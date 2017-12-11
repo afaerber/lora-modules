@@ -25,6 +25,7 @@
 #define LORA_REG_FIFO_TX_BASE_ADDR	0x0e
 #define LORA_REG_IRQ_FLAGS_MASK		0x11
 #define LORA_REG_IRQ_FLAGS		0x12
+#define LORA_REG_PAYLOAD_LENGTH		0x22
 #define REG_DIO_MAPPING1		0x40
 #define REG_DIO_MAPPING2		0x41
 #define REG_VERSION			0x42
@@ -136,6 +137,12 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 	ret = sx1276_write_single(spi, LORA_REG_FIFO_ADDR_PTR, addr);
 	if (ret < 0) {
 		dev_err(&spi->dev, "Failed to write RegFifoAddrPtr (%d)\n", ret);
+		return ret;
+	}
+
+	ret = sx1276_write_single(spi, LORA_REG_PAYLOAD_LENGTH, data_len);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Failed to write RegPayloadLength (%d)\n", ret);
 		return ret;
 	}
 
