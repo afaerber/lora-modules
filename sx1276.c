@@ -127,6 +127,17 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
+	ret = sx1276_read_single(spi, REG_OPMODE, &val);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to read RegOpMode (%d)\n", ret);
+		return ret;
+	}
+	dev_dbg(&spi->dev, "RegOpMode = 0x%02x\n", val);
+	if (!(val & REG_OPMODE_LONG_RANGE_MODE))
+		dev_err(&spi->dev, "LongRange Mode not active!\n");
+	if ((val & REG_OPMODE_MODE_MASK) == REG_OPMODE_MODE_SLEEP)
+		dev_err(&spi->dev, "Cannot access FIFO in Sleep Mode!\n");
+
 	ret = sx1276_read_single(spi, LORA_REG_FIFO_TX_BASE_ADDR, &addr);
 	if (ret < 0) {
 		dev_err(&spi->dev, "Failed to read RegFifoTxBaseAddr (%d)\n", ret);
