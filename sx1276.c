@@ -124,6 +124,8 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 	u8 addr, val;
 	int ret;
 
+	dev_dbg(&spi->dev, "%s\n", __func__);
+
 	ret = sx1276_read_single(spi, LORA_REG_FIFO_TX_BASE_ADDR, &addr);
 	if (ret < 0) {
 		dev_err(&spi->dev, "Failed to read RegFifoTxBaseAddr (%d)\n", ret);
