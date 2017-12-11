@@ -50,6 +50,7 @@ int main(void)
 	}
 
 	char buf[1];
+	buf[0] = 0x42;
 	int bytes_sent = write(skt, buf, 1);
 	if (bytes_sent == -1) {
 		int err = errno;
