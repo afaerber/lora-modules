@@ -311,6 +311,8 @@ static int sx1276_loradev_open(struct net_device *netdev)
 	return 0;
 
 err_irq:
+	destroy_workqueue(priv->wq);
+	priv->wq = NULL;
 err_opmode:
 	close_loradev(netdev);
 	mutex_unlock(&priv->spi_lock);
