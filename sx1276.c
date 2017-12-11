@@ -135,7 +135,7 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 
 	ret = sx1276_write_single(spi, LORA_REG_FIFO_ADDR_PTR, addr);
 	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to read RegFifoAddrPtr (%d)\n", ret);
+		dev_err(&spi->dev, "Failed to write RegFifoAddrPtr (%d)\n", ret);
 		return ret;
 	}
 
