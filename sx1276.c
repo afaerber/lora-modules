@@ -129,6 +129,7 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 		dev_err(&spi->dev, "Failed to read RegFifoTxBaseAddr (%d)\n", ret);
 		return ret;
 	}
+	dev_dbg(&spi->dev, "RegFifoTxBaseAddr = 0x%02x\n", addr);
 
 	ret = sx1276_write_single(spi, LORA_REG_FIFO_ADDR_PTR, addr);
 	if (ret < 0) {
@@ -141,6 +142,20 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 		dev_err(&spi->dev, "Failed to write into FIFO (%d)\n", ret);
 		return ret;
 	}
+
+	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS_MASK, &val);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Failed to read RegIrqFlagsMask (%d)\n", ret);
+		return ret;
+	}
+	dev_dbg(&spi->dev, "RegIrqFlagsMask = 0x%02x\n", val);
+
+	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Failed to read RegIrqFlags (%d)\n", ret);
+		return ret;
+	}
+	dev_dbg(&spi->dev, "RegIrqFlags = 0x%02x\n", val);
 
 	ret = sx1276_read_single(spi, REG_DIO_MAPPING1, &val);
 	if (ret) {
