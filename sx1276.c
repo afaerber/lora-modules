@@ -528,6 +528,7 @@ static int sx1276_probe(struct spi_device *spi)
 	struct sx1276_priv *priv;
 	int rst, dio[6], ret, model, i;
 	u32 freq_xosc, freq_band;
+	unsigned long long freq_rf;
 	u8 val;
 
 	rst = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
@@ -606,14 +607,16 @@ static int sx1276_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	freq_band = freq_band * (1 << 19) / freq_xosc;
-	dev_dbg(&spi->dev, "FRF = %u", freq_band);
+	freq_rf = freq_band;
+	freq_rf *= (1 << 19);
+	freq_rf /= freq_xosc;
+	dev_dbg(&spi->dev, "Frf = %llu", freq_rf);
 
-	ret = sx1276_write_single(spi, REG_FRF_MSB, freq_band >> 16);
+	ret = sx1276_write_single(spi, REG_FRF_MSB, freq_rf >> 16);
 	if (!ret)
-		ret = sx1276_write_single(spi, REG_FRF_MID, freq_band >> 8);
+		ret = sx1276_write_single(spi, REG_FRF_MID, freq_rf >> 8);
 	if (!ret)
-		ret = sx1276_write_single(spi, REG_FRF_LSB, freq_band);
+		ret = sx1276_write_single(spi, REG_FRF_LSB, freq_rf);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing frequency (%d)", ret);
 		return ret;
