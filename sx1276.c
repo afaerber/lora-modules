@@ -410,10 +410,10 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int ret;
 	u8 msb, mid, lsb;
-	u32 freq;
+	u32 freq_xosc;
 	unsigned long long frf;
 
-	ret = of_property_read_u32(spi->dev.of_node, "radio-frequency", &freq);
+	ret = of_property_read_u32(spi->dev.of_node, "radio-frequency", &freq_xosc);
 	if (ret)
 		return 0;
 
@@ -430,8 +430,8 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	if (ret)
 		return 0;
 
-	frf = ((ulong)msb << 16) | ((ulong)mid << 8) | lsb;
-	frf *= freq;
+	frf = freq_xosc;
+	frf *= ((ulong)msb << 16) | ((ulong)mid << 8) | lsb;
 	frf /= (1 << 19);
 
 	buf = kasprintf(GFP_KERNEL, "%llu\n", frf);
