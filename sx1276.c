@@ -400,6 +400,51 @@ static const struct net_device_ops sx1276_netdev_ops =  {
 	.ndo_start_xmit = sx1276_loradev_start_xmit,
 };
 
+static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct net_device *netdev = file->private_data;
+	struct sx1276_priv *priv = netdev_priv(netdev);
+	struct spi_device *spi = priv->spi;
+	ssize_t size;
+	char *buf;
+	int len = 0;
+	int ret;
+	u8 msb, mid, lsb;
+	unsigned long freq;
+
+	mutex_lock(&priv->spi_lock);
+
+	ret = sx1276_read_single(spi, REG_FRF_MSB, &msb);
+	if (!ret)
+		ret = sx1276_read_single(spi, REG_FRF_MID, &mid);
+	if (!ret)
+		ret = sx1276_read_single(spi, REG_FRF_LSB, &lsb);
+
+	mutex_unlock(&priv->spi_lock);
+
+	if (ret)
+		return 0;
+
+	freq = 32000000UL / (2 << 19);
+	freq *= ((ulong)msb << 16) | ((ulong)mid << 8) | lsb;
+
+	buf = kasprintf(GFP_KERNEL, "%lu\n", freq);
+	if (!buf)
+		return 0;
+
+	size = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return size;
+}
+
+static const struct file_operations sx1276_freq_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = sx1276_freq_read,
+};
+
 static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
@@ -596,6 +641,7 @@ static int sx1276_probe(struct spi_device *spi)
 
 	priv->debugfs = debugfs_create_dir(dev_name(&spi->dev), NULL);
 	debugfs_create_file("state", S_IRUGO, priv->debugfs, netdev, &sx1276_state_fops);
+	debugfs_create_file("frequency", S_IRUGO, priv->debugfs, netdev, &sx1276_freq_fops);
 
 	dev_info(&spi->dev, "SX1276 module probed (SX%d)", model);
 
