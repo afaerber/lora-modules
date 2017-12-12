@@ -410,7 +410,11 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int ret;
 	u8 msb, mid, lsb;
-	unsigned long freq;
+	u32 freq;
+
+	ret = of_property_read_u32(spi->dev.of_node, "radio-frequency", &freq);
+	if (ret)
+		return 0;
 
 	mutex_lock(&priv->spi_lock);
 
@@ -425,10 +429,10 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	if (ret)
 		return 0;
 
-	freq = 32000000UL / (2 << 19);
 	freq *= ((ulong)msb << 16) | ((ulong)mid << 8) | lsb;
+	freq /= (1 << 19);
 
-	buf = kasprintf(GFP_KERNEL, "%lu\n", freq);
+	buf = kasprintf(GFP_KERNEL, "%u\n", freq);
 	if (!buf)
 		return 0;
 
@@ -590,7 +594,7 @@ static int sx1276_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	freq_band = freq_band / freq_xosc * (2 << 19);
+	freq_band = freq_band * (1 << 19) / freq_xosc;
 	dev_dbg(&spi->dev, "FRF = %u", freq_band);
 
 	ret = sx1276_write_single(spi, REG_FRF_MSB, freq_band >> 16);
