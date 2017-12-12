@@ -22,11 +22,13 @@
 #define REG_FRF_MSB			0x06
 #define REG_FRF_MID			0x07
 #define REG_FRF_LSB			0x08
+#define REG_PA_CONFIG			0x09
 #define LORA_REG_FIFO_ADDR_PTR		0x0d
 #define LORA_REG_FIFO_TX_BASE_ADDR	0x0e
 #define LORA_REG_IRQ_FLAGS_MASK		0x11
 #define LORA_REG_IRQ_FLAGS		0x12
 #define LORA_REG_PAYLOAD_LENGTH		0x22
+#define LORA_REG_SYNC_WORD		0x39
 #define REG_DIO_MAPPING1		0x40
 #define REG_DIO_MAPPING2		0x41
 #define REG_VERSION			0x42
@@ -421,10 +423,22 @@ static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
 		lora_mode = (val & REG_OPMODE_LONG_RANGE_MODE) != 0;
 	}
 
+	ret = sx1276_read_single(spi, REG_PA_CONFIG, &val);
+	if (!ret)
+		len += snprintf(buf + len, max_len - len, "RegPaConfig = 0x%02x\n", val);
+
 	if (lora_mode) {
+		ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS_MASK, &val);
+		if (!ret)
+			len += snprintf(buf + len, max_len - len, "RegIrqFlagsMask = 0x%02x\n", val);
+
 		ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
 		if (!ret)
 			len += snprintf(buf + len, max_len - len, "RegIrqFlags = 0x%02x\n", val);
+
+		ret = sx1276_read_single(spi, LORA_REG_SYNC_WORD, &val);
+		if (!ret)
+			len += snprintf(buf + len, max_len - len, "RegSyncWord = 0x%02x\n", val);
 	}
 
 	mutex_unlock(&priv->spi_lock);
