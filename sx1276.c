@@ -476,6 +476,16 @@ static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
 		lora_mode = (val & REG_OPMODE_LONG_RANGE_MODE) != 0;
 	}
 
+	ret = sx1276_read_single(spi, REG_FRF_MSB, &val);
+	if (!ret)
+		len += snprintf(buf + len, max_len - len, "RegFrMsb = 0x%02x\n", val);
+	ret = sx1276_read_single(spi, REG_FRF_MID, &val);
+	if (!ret)
+		len += snprintf(buf + len, max_len - len, "RegFrMid = 0x%02x\n", val);
+	ret = sx1276_read_single(spi, REG_FRF_LSB, &val);
+	if (!ret)
+		len += snprintf(buf + len, max_len - len, "RegFrLsb = 0x%02x\n", val);
+
 	ret = sx1276_read_single(spi, REG_PA_CONFIG, &val);
 	if (!ret)
 		len += snprintf(buf + len, max_len - len, "RegPaConfig = 0x%02x\n", val);
