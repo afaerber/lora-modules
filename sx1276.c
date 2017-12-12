@@ -415,14 +415,14 @@ static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
 
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (!ret) {
-		len += snprintf(buf - len, max_len - len, "RegOpMode = 0x%02x\n", val);
+		len += snprintf(buf + len, max_len - len, "RegOpMode = 0x%02x\n", val);
 		lora_mode = (val & REG_OPMODE_LONG_RANGE_MODE) != 0;
 	}
 
 	if (lora_mode) {
 		ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
 		if (!ret)
-			len += snprintf(buf - len, max_len - len, "RegIrqFlags = 0x%02x\n", val);
+			len += snprintf(buf + len, max_len - len, "RegIrqFlags = 0x%02x\n", val);
 	}
 
 	mutex_unlock(&priv->spi_lock);
