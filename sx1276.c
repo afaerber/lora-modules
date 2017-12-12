@@ -32,6 +32,7 @@
 #define REG_DIO_MAPPING1		0x40
 #define REG_DIO_MAPPING2		0x41
 #define REG_VERSION			0x42
+#define REG_PA_DAC			0x4d
 
 #define REG_OPMODE_LONG_RANGE_MODE		BIT(7)
 #define REG_OPMODE_LOW_FREQUENCY_MODE_ON	BIT(3)
@@ -442,6 +443,10 @@ static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
 		if (!ret)
 			len += snprintf(buf + len, max_len - len, "RegSyncWord = 0x%02x\n", val);
 	}
+
+	ret = sx1276_read_single(spi, REG_PA_DAC, &val);
+	if (!ret)
+		len += snprintf(buf + len, max_len - len, "RegPaDac = 0x%02x\n", val);
 
 	mutex_unlock(&priv->spi_lock);
 
