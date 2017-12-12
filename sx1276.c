@@ -42,6 +42,8 @@
 #define REG_OPMODE_MODE_RXCONTINUOUS		(0x5 << 0)
 #define REG_OPMODE_MODE_RXSINGLE		(0x6 << 0)
 
+#define REG_PA_CONFIG_PA_SELECT			BIT(7)
+
 #define LORA_REG_IRQ_FLAGS_TX_DONE		BIT(3)
 
 #define REG_DIO_MAPPING1_DIO0_MASK	GENMASK(7, 6)
@@ -549,6 +551,19 @@ static int sx1276_probe(struct spi_device *spi)
 		ret = sx1276_write_single(spi, REG_FRF_LSB, freq_band);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing frequency (%d)", ret);
+		return ret;
+	}
+
+	ret = sx1276_read_single(spi, REG_PA_CONFIG, &val);
+	if (ret) {
+		dev_err(&spi->dev, "failed reading RegPaConfig\n");
+		return ret;
+	}
+	if (true)
+		val |= REG_PA_CONFIG_PA_SELECT;
+	ret = sx1276_write_single(spi, REG_PA_CONFIG, val);
+	if (ret) {
+		dev_err(&spi->dev, "failed writing RegPaConfig\n");
 		return ret;
 	}
 
