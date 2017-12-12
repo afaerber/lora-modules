@@ -5,6 +5,7 @@
  * Copyright (c) 2016-2017 Andreas Färber
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -57,6 +58,8 @@ struct sx1276_priv {
 
 	struct workqueue_struct *wq;
 	struct work_struct tx_work;
+
+	struct dentry *debugfs;
 };
 
 static int sx1276_read_single(struct spi_device *spi, u8 reg, u8 *val)
@@ -390,6 +393,43 @@ static const struct net_device_ops sx1276_netdev_ops =  {
 	.ndo_start_xmit = sx1276_loradev_start_xmit,
 };
 
+static ssize_t sx1276_state_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct net_device *netdev = file->private_data;
+	struct sx1276_priv *priv = netdev_priv(netdev);
+	struct spi_device *spi = priv->spi;
+	ssize_t size;
+	char *buf;
+	int len = 0;
+	int ret;
+	u8 val;
+	const int max_len = 4096;
+
+	buf = kzalloc(max_len, GFP_KERNEL);
+	if (!buf)
+		return 0;
+
+	mutex_lock(&priv->spi_lock);
+
+	ret = sx1276_read_single(spi, REG_OPMODE, &val);
+	if (!ret)
+		len += snprintf(buf - len, max_len - len, "RegOpMode = 0x%02x\n", val);
+
+	mutex_unlock(&priv->spi_lock);
+
+	size = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return size;
+}
+
+static const struct file_operations sx1276_state_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = sx1276_state_read,
+};
+
 static int sx1276_probe(struct spi_device *spi)
 {
 	struct net_device *netdev;
@@ -509,6 +549,9 @@ static int sx1276_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	priv->debugfs = debugfs_create_dir(dev_name(&spi->dev), NULL);
+	debugfs_create_file("state", S_IRUGO, priv->debugfs, netdev, &sx1276_state_fops);
+
 	dev_info(&spi->dev, "SX1276 module probed (SX%d)", model);
 
 	return 0;
@@ -517,6 +560,9 @@ static int sx1276_probe(struct spi_device *spi)
 static int sx1276_remove(struct spi_device *spi)
 {
 	struct net_device *netdev = spi_get_drvdata(spi);
+	struct sx1276_priv *priv = netdev_priv(netdev);
+
+	debugfs_remove_recursive(priv->debugfs);
 
 	unregister_loradev(netdev);
 	free_loradev(netdev);
