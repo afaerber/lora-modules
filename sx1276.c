@@ -408,7 +408,6 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	struct spi_device *spi = priv->spi;
 	ssize_t size;
 	char *buf;
-	int len = 0;
 	int ret;
 	u8 msb, mid, lsb;
 	unsigned long freq;
@@ -433,7 +432,7 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	if (!buf)
 		return 0;
 
-	size = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	size = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);
 
 	return size;
