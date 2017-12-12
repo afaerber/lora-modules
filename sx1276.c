@@ -208,6 +208,8 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 		return ret;
 	}
 
+	dev_dbg(&spi->dev, "%s: done\n", __func__);
+
 	return 0;
 }
 
