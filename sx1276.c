@@ -413,7 +413,7 @@ static ssize_t sx1276_freq_read(struct file *file, char __user *user_buf,
 	u32 freq_xosc;
 	unsigned long long frf;
 
-	ret = of_property_read_u32(spi->dev.of_node, "radio-frequency", &freq_xosc);
+	ret = of_property_read_u32(spi->dev.of_node, "clock-frequency", &freq_xosc);
 	if (ret)
 		return 0;
 
