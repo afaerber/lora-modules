@@ -171,6 +171,19 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 		return ret;
 	}
 
+	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to read RegIrqFlags (%d)\n", ret);
+		return ret;
+	}
+	dev_dbg(&spi->dev, "RegIrqFlags = 0x%02x\n", val);
+
+	ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS, LORA_REG_IRQ_FLAGS_TX_DONE);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to write RegIrqFlags (%d)\n", ret);
+		return ret;
+	}
+
 	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS_MASK, &val);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to read RegIrqFlagsMask (%d)\n", ret);
@@ -178,12 +191,12 @@ static int sx1276_tx(struct spi_device *spi, void *data, int data_len)
 	}
 	dev_dbg(&spi->dev, "RegIrqFlagsMask = 0x%02x\n", val);
 
-	ret = sx1276_read_single(spi, LORA_REG_IRQ_FLAGS, &val);
+	val &= ~LORA_REG_IRQ_FLAGS_TX_DONE;
+	ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS_MASK, val);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to read RegIrqFlags (%d)\n", ret);
+		dev_err(&spi->dev, "Failed to write RegIrqFlagsMask (%d)\n", ret);
 		return ret;
 	}
-	dev_dbg(&spi->dev, "RegIrqFlags = 0x%02x\n", val);
 
 	ret = sx1276_read_single(spi, REG_DIO_MAPPING1, &val);
 	if (ret) {
@@ -353,6 +366,12 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 
 	mutex_lock(&priv->spi_lock);
 
+	ret = sx1276_write_single(spi, LORA_REG_IRQ_FLAGS_MASK, 0xff);
+	if (ret) {
+		netdev_err(netdev, "Failed to write RegIrqFlagsMask (%d)\n", ret);
+		goto err_irqmask;
+	}
+
 	ret = sx1276_read_single(spi, REG_OPMODE, &val);
 	if (ret) {
 		netdev_err(netdev, "Failed to read RegOpMode (%d)\n", ret);
@@ -390,6 +409,7 @@ static int sx1276_loradev_stop(struct net_device *netdev)
 	return 0;
 
 err_opmode:
+err_irqmask:
 	mutex_unlock(&priv->spi_lock);
 	return ret;
 }
