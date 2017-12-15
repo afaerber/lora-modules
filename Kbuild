@@ -8,4 +8,5 @@ obj-m += sx1276.o
 
 ifneq ($(CONFIG_SERIAL_DEV_BUS),)
 obj-m += rn2483.o
+obj-m += wimod.o
 endif
