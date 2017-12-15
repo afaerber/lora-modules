@@ -114,8 +114,16 @@ static int wimod_hci_send(struct serdev_device *sdev,
 static int wimod_receive_buf(struct serdev_device *sdev, const u8 *data, size_t count)
 {
 	struct wimod_device *wmdev = serdev_device_get_drvdata(sdev);
+	size_t i;
 
 	dev_dbg(&sdev->dev, "Receive (%d)", (int)count);
+
+	for (i = 0; i < count; i++) {
+		if (data[i] == SLIP_END)
+			pr_info("received: END\n");
+		else
+			pr_info("received: %02x\n", data[i]);
+	}
 
 	return count;
 }
