@@ -77,6 +77,7 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	crc = crc_ccitt_byte(crc, dst_id);
 	crc = crc_ccitt_byte(crc, msg_id);
 	crc = crc_ccitt(crc, payload, payload_len);
+	crc = ~crc;
 
 	ret = slip_send_end(sdev);
 	ret = slip_send_data(sdev, &dst_id, 1);
