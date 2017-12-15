@@ -23,9 +23,19 @@ struct wimod_device {
 #define SLIP_ESC_END	0334
 #define SLIP_ESC_ESC	0335
 
+static inline void slip_print_bytes(const u8* buf, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		printk("%02x ", buf[i]);
+}
+
 static int slip_send_end(struct serdev_device *sdev)
 {
 	u8 val = SLIP_END;
+
+	slip_print_bytes(&val, 1);
 
 	return serdev_device_write_buf(sdev, &val, 1);
 }
@@ -34,12 +44,15 @@ static int slip_send_data(struct serdev_device *sdev, const u8 *buf, int len)
 {
 	int last_idx = -1;
 	int i;
-	u8 esc[2] = { SLIP_ESC, };
+	u8 esc[2] = { SLIP_ESC, 0 };
 	int ret;
 
 	for (i = 0; i < len; i++) {
-		if (buf[i] != SLIP_END && buf[i] != SLIP_ESC)
+		if (buf[i] != SLIP_END &&
+		    buf[i] != SLIP_ESC)
 			continue;
+
+		slip_print_bytes(&buf[last_idx + 1], i - (last_idx + 1));
 
 		ret = serdev_device_write_buf(sdev,
 			&buf[last_idx + 1], i - (last_idx + 1));
@@ -56,6 +69,8 @@ static int slip_send_data(struct serdev_device *sdev, const u8 *buf, int len)
 
 		last_idx = i;
 	}
+
+	slip_print_bytes(&buf[last_idx + 1], len - (last_idx + 1));
 
 	ret = serdev_device_write_buf(sdev,
 		&buf[last_idx + 1], len - (last_idx + 1));
@@ -76,16 +91,22 @@ static int wimod_hci_send(struct serdev_device *sdev,
 
 	crc = crc_ccitt_byte(crc, dst_id);
 	crc = crc_ccitt_byte(crc, msg_id);
-	crc = crc_ccitt(crc, payload, payload_len);
+	if (payload_len > 0)
+		crc = crc_ccitt(crc, payload, payload_len);
 	crc = ~crc;
+
+	printk(KERN_INFO "sending: ");
 
 	ret = slip_send_end(sdev);
 	ret = slip_send_data(sdev, &dst_id, 1);
 	ret = slip_send_data(sdev, &msg_id, 1);
-	ret = slip_send_data(sdev, payload, payload_len);
+	if (payload_len > 0)
+		ret = slip_send_data(sdev, payload, payload_len);
 	cpu_to_le16s(crc);
 	ret = slip_send_data(sdev, (u8 *)&crc, 2);
 	ret = slip_send_end(sdev);
+
+	printk("\n");
 
 	return ret;
 }
