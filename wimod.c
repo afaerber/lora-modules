@@ -82,6 +82,8 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	ret = slip_send_data(sdev, &dst_id, 1);
 	ret = slip_send_data(sdev, &msg_id, 1);
 	ret = slip_send_data(sdev, payload, payload_len);
+	cpu_to_le16s(crc);
+	ret = slip_send_data(sdev, (u8 *)&crc, 2);
 	ret = slip_send_end(sdev);
 
 	return ret;
