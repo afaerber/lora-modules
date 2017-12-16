@@ -14,8 +14,15 @@
 #include "af_lora.h"
 #include "lora.h"
 
+#define WIMOD_HCI_PAYLOAD_MAX	300
+#define WIMOD_HCI_PACKET_MAX	(1 + (2 + WIMOD_HCI_PAYLOAD_MAX + 2) * 2 + 1)
+
 struct wimod_device {
 	struct serdev_device *serdev;
+
+	u8 rx_buf[WIMOD_HCI_PACKET_MAX];
+	int rx_len;
+	bool rx_esc;
 };
 
 #define SLIP_END	0300
@@ -111,21 +118,74 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	return ret;
 }
 
+static void wimod_process_packet(struct serdev_device *sdev, const u8 *data, int len)
+{
+	u16 crc;
+
+	dev_info(&sdev->dev, "Processing incoming packet (%d)\n", len);
+
+	if (len < 4) {
+		dev_dbg(&sdev->dev, "Discarding packet of length %d\n", len);
+		return;
+	}
+
+	crc = ~crc_ccitt(0xffff, data, len);
+	if (crc != 0x0f47) {
+		dev_dbg(&sdev->dev, "Discarding packet with wrong checksum\n");
+		return;
+	}
+}
+
 static int wimod_receive_buf(struct serdev_device *sdev, const u8 *data, size_t count)
 {
 	struct wimod_device *wmdev = serdev_device_get_drvdata(sdev);
-	size_t i;
+	size_t i = 0;
+	int len = 0;
 
-	dev_dbg(&sdev->dev, "Receive (%d)", (int)count);
+	dev_dbg(&sdev->dev, "Receive (%d)\n", (int)count);
 
-	for (i = 0; i < count; i++) {
-		if (data[i] == SLIP_END)
-			pr_info("received: END\n");
-		else
-			pr_info("received: %02x\n", data[i]);
+	while (i < min(count, sizeof(wmdev->rx_buf) - wmdev->rx_len)) {
+		if (wmdev->rx_esc) {
+			wmdev->rx_esc = false;
+			switch (data[i]) {
+			case SLIP_ESC_END:
+				wmdev->rx_buf[wmdev->rx_len++] = SLIP_END;
+				break;
+			case SLIP_ESC_ESC:
+				wmdev->rx_buf[wmdev->rx_len++] = SLIP_ESC;
+				break;
+			default:
+				dev_warn(&sdev->dev, "Ignoring unknown escape sequence 0300 0%o\n", data[i]);
+				break;
+			}
+			len += i + 1;
+			data += i + 1;
+			count -= i + 1;
+			i = 0;
+			continue;
+		}
+		if (data[i] != SLIP_END &&
+		    data[i] != SLIP_ESC) {
+			i++;
+			continue;
+		}
+		if (i > 0) {
+			memcpy(&wmdev->rx_buf[wmdev->rx_len], data, i);
+			wmdev->rx_len += i;
+		}
+		if (data[i] == SLIP_END && wmdev->rx_len > 0) {
+			wimod_process_packet(sdev, wmdev->rx_buf, wmdev->rx_len);
+			wmdev->rx_len = 0;
+		} else if (data[i] == SLIP_ESC) {
+			wmdev->rx_esc = true;
+		}
+		len += i + 1;
+		data += i + 1;
+		count -= i + 1;
+		i = 0;
 	}
 
-	return count;
+	return len;
 }
 
 static const struct serdev_device_ops wimod_serdev_client_ops = {
