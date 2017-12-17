@@ -649,6 +649,8 @@ static int sx1276_probe(struct spi_device *spi)
 	}
 	if (true)
 		val |= REG_PA_CONFIG_PA_SELECT;
+	val &= ~GENMASK(3, 0);
+	val |= 20 - 5;
 	ret = sx1276_write_single(spi, REG_PA_CONFIG, val);
 	if (ret) {
 		dev_err(&spi->dev, "failed writing RegPaConfig\n");
