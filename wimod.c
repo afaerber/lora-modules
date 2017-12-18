@@ -44,8 +44,6 @@ static int slip_send_end(struct serdev_device *sdev, unsigned long timeout)
 {
 	u8 val = SLIP_END;
 
-	slip_print_bytes(&val, 1);
-
 	return serdev_device_write(sdev, &val, 1, timeout);
 }
 
@@ -91,6 +89,47 @@ static int slip_send_data(struct serdev_device *sdev, const u8 *buf, int len,
 		&buf[last_idx + 1], len - (last_idx + 1), timeout);
 
 	return ret;
+}
+
+static int slip_write_data(u8 *buf, int buf_len, const u8 *data, int data_len)
+{
+	int last_idx = -1;
+	int i, n;
+	int count = 0;
+
+	for (i = 0; i < data_len; i++) {
+		if (data[i] != SLIP_END &&
+		    data[i] != SLIP_ESC)
+			continue;
+
+		n = i - (last_idx + 1);
+		if (count + n + 2 > buf_len)
+			return -ENOMEM;
+
+		memcpy(buf + count, &data[last_idx + 1], n);
+		count += n;
+
+		buf[count++] = SLIP_ESC;
+		switch (data[i]) {
+		case SLIP_END:
+			buf[count++] = SLIP_ESC_END;
+			break;
+		case SLIP_ESC:
+			buf[count++] = SLIP_ESC_ESC;
+			break;
+		}
+
+		last_idx = i;
+	}
+
+	n = data_len - (last_idx + 1);
+	if (count + n > buf_len)
+		return -ENOMEM;
+
+	memcpy(buf + count, &data[last_idx + 1], n);
+	count += n;
+
+	return count;
 }
 
 #define DEVMGMT_ID	0x01
@@ -150,8 +189,21 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	u8 dst_id, u8 msg_id, u8 *payload, int payload_len,
 	unsigned long timeout)
 {
+	u8 buf[WIMOD_HCI_PACKET_MAX];
+	int buf_len = 0;
 	u16 crc = 0xffff;
-	int ret;
+	int ret, i;
+
+	if (payload_len > WIMOD_HCI_PAYLOAD_MAX)
+		return -EINVAL;
+
+	for (i = 0; i < 30; i++) {
+		ret = slip_send_end(sdev, timeout);
+		if (ret) {
+			dev_err(&sdev->dev, "%s: wakeup END %d failed\n", __func__, i);
+			return ret;
+		}
+	}
 
 	crc = crc_ccitt_byte(crc, dst_id);
 	crc = crc_ccitt_byte(crc, msg_id);
@@ -161,7 +213,7 @@ static int wimod_hci_send(struct serdev_device *sdev,
 
 	printk(KERN_INFO "sending: ");
 
-	ret = slip_send_end(sdev, timeout);
+	/*ret = slip_send_end(sdev, timeout);
 	if (ret) {
 		dev_err(&sdev->dev, "%s: initial END failed\n", __func__);
 		return ret;
@@ -177,18 +229,34 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	if (ret) {
 		dev_err(&sdev->dev, "%s: msg_id failed\n", __func__);
 		return ret;
-	}
+	}*/
+
+	buf[buf_len++] = SLIP_END;
+
+	ret = slip_write_data(buf + buf_len, sizeof(buf) - buf_len, &dst_id, 1);
+	if (ret < 0)
+		return ret;
+	buf_len += ret;
+
+	ret = slip_write_data(buf + buf_len, sizeof(buf) - buf_len, &msg_id, 1);
+	if (ret < 0)
+		return ret;
+	buf_len += ret;
 
 	if (payload_len > 0) {
-		ret = slip_send_data(sdev, payload, payload_len, timeout);
+		/*ret = slip_send_data(sdev, payload, payload_len, timeout);
 		if (ret) {
 			dev_err(&sdev->dev, "%s: payload failed\n", __func__);
 			return ret;
-		}
+		}*/
+		ret = slip_write_data(buf + buf_len, sizeof(buf) - buf_len, payload, payload_len);
+		if (ret < 0)
+			return ret;
+		buf_len += ret;
 	}
 
 	cpu_to_le16s(crc);
-	ret = slip_send_data(sdev, (u8 *)&crc, 2, timeout);
+	/*ret = slip_send_data(sdev, (u8 *)&crc, 2, timeout);
 	if (ret) {
 		dev_err(&sdev->dev, "%s: FCS failed\n", __func__);
 		return ret;
@@ -198,11 +266,22 @@ static int wimod_hci_send(struct serdev_device *sdev,
 	if (ret) {
 		dev_err(&sdev->dev, "%s: trailing END failed\n", __func__);
 		return ret;
-	}
+	}*/
 
-	printk("\n");
+	ret = slip_write_data(buf + buf_len, sizeof(buf) - buf_len, (u8 *)&crc, 2);
+	if (ret < 0)
+		return ret;
+	buf_len += ret;
 
-	return 0;
+	buf[buf_len++] = SLIP_END;
+
+	slip_print_bytes(buf, buf_len);
+
+	return serdev_device_write(sdev, buf, buf_len, timeout);
+
+	//printk("\n");
+
+	//return 0;
 }
 
 static int wimod_hci_devmgmt_status(u8 status)
@@ -417,20 +496,13 @@ static int wimod_probe(struct serdev_device *sdev)
 	serdev_device_set_flow_control(sdev, false);
 	serdev_device_set_client_ops(sdev, &wimod_serdev_client_ops);
 
-	/*ret = wimod_hci_ping(wmdev, 3 * HZ);
+	ret = wimod_hci_ping(wmdev, HZ);
 	if (ret) {
 		dev_err(&sdev->dev, "Ping failed (%d)\n", ret);
 		goto err;
-	}*/
+	}
 
-	//mdelay(500);
-	/*ret = wimod_hci_ping(wmdev, 3 * HZ);
-	if (ret) {
-		dev_err(&sdev->dev, "Ping 2 failed (%d)\n", ret);
-		goto err;
-	}*/
-
-	ret = wimod_hci_get_device_info(wmdev, buf, 3 * HZ);
+	ret = wimod_hci_get_device_info(wmdev, buf, HZ);
 	if (ret) {
 		dev_err(&sdev->dev, "Failed to obtain device info (%d)\n", ret);
 		goto err;
