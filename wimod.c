@@ -47,6 +47,7 @@ static int slip_send_end(struct serdev_device *sdev, unsigned long timeout)
 	return serdev_device_write(sdev, &val, 1, timeout);
 }
 
+#if 0
 static int slip_send_data(struct serdev_device *sdev, const u8 *buf, int len,
 	unsigned long timeout)
 {
@@ -90,6 +91,7 @@ static int slip_send_data(struct serdev_device *sdev, const u8 *buf, int len,
 
 	return ret;
 }
+#endif
 
 static int slip_write_data(u8 *buf, int buf_len, const u8 *data, int data_len)
 {
@@ -138,6 +140,8 @@ static int slip_write_data(u8 *buf, int buf_len, const u8 *data, int data_len)
 #define DEVMGMT_MSG_PING_RSP		0x02
 #define DEVMGMT_MSG_GET_DEVICE_INFO_REQ	0x03
 #define DEVMGMT_MSG_GET_DEVICE_INFO_RSP	0x04
+#define DEVMGMT_MSG_GET_FW_INFO_REQ	0x05
+#define DEVMGMT_MSG_GET_FW_INFO_RSP	0x06
 
 #define DEVMGMT_STATUS_OK	0x00
 
@@ -186,7 +190,7 @@ static void wimod_hci_packet_dispatch_completion(const u8 *data, int len,
 }
 
 static int wimod_hci_send(struct serdev_device *sdev,
-	u8 dst_id, u8 msg_id, u8 *payload, int payload_len,
+	u8 dst_id, u8 msg_id, const u8 *payload, int payload_len,
 	unsigned long timeout)
 {
 	u8 buf[WIMOD_HCI_PACKET_MAX];
@@ -295,93 +299,114 @@ static int wimod_hci_devmgmt_status(u8 status)
 	}
 }
 
-static int wimod_hci_ping(struct wimod_device *wmdev, unsigned long timeout)
+static int wimod_hci_devmgmt_send_sync(struct wimod_device *wmdev,
+	u8 req_msg_id, const u8 *req_payload, int req_payload_len,
+	u8 rsp_msg_id, u8 **rsp_payload, int *rsp_payload_len,
+	unsigned long timeout)
 {
 	struct wimod_hci_packet_completion packet = {0};
 	int ret;
 
+	if (rsp_payload && !rsp_payload_len)
+		return -EINVAL;
+
 	packet.disp.dst_id = DEVMGMT_ID;
-	packet.disp.msg_id = DEVMGMT_MSG_PING_RSP;
+	packet.disp.msg_id = rsp_msg_id;
 	packet.disp.dispatchee = wimod_hci_packet_dispatch_completion;
 	init_completion(&packet.comp);
 
-	wimod_hci_add_dispatcher(wmdev, &(packet.disp));
+	wimod_hci_add_dispatcher(wmdev, &packet.disp);
 
-	ret = wimod_hci_send(wmdev->serdev, DEVMGMT_ID, DEVMGMT_MSG_PING_REQ, NULL, 0, timeout);
+	ret = wimod_hci_send(wmdev->serdev, DEVMGMT_ID, req_msg_id, req_payload, req_payload_len, timeout);
 	if (ret) {
 		wimod_hci_remove_dispatcher(wmdev, &(packet.disp));
-		dev_err(&wmdev->serdev->dev, "ping: send failed\n");
 		return ret;
 	}
 
-	timeout = wait_for_completion_timeout(&(packet.comp), timeout);
-	wimod_hci_remove_dispatcher(wmdev, &(packet.disp));
-	if (!timeout) {
-		dev_err(&wmdev->serdev->dev, "ping: response timeout\n");
+	timeout = wait_for_completion_timeout(&packet.comp, timeout);
+	wimod_hci_remove_dispatcher(wmdev, &packet.disp);
+	if (!timeout)
 		return -ETIMEDOUT;
-	}
 
 	if (packet.payload_len < 1) {
-		dev_err(&wmdev->serdev->dev, "ping: payload length\n");
 		kfree(packet.payload);
 		return -EINVAL;
 	}
 
 	ret = wimod_hci_devmgmt_status(packet.payload[0]);
-	kfree(packet.payload);
+	if (ret || !rsp_payload)
+		kfree(packet.payload);
+	else if (rsp_payload) {
+		*rsp_payload = packet.payload;
+		*rsp_payload_len = packet.payload_len;
+	}
 	return ret;
+}
+
+static int wimod_hci_ping(struct wimod_device *wmdev, unsigned long timeout)
+{
+	return wimod_hci_devmgmt_send_sync(wmdev,
+		DEVMGMT_MSG_PING_REQ, NULL, 0,
+		DEVMGMT_MSG_PING_RSP, NULL, NULL,
+		timeout);
 }
 
 static int wimod_hci_get_device_info(struct wimod_device *wmdev, u8 *buf, unsigned long timeout)
 {
-	struct wimod_hci_packet_completion packet = {0};
+	u8 *payload;
+	int payload_len;
 	int ret;
 
-	packet.disp.dst_id = DEVMGMT_ID;
-	packet.disp.msg_id = DEVMGMT_MSG_GET_DEVICE_INFO_RSP;
-	packet.disp.dispatchee = wimod_hci_packet_dispatch_completion;
-	init_completion(&packet.comp);
-
-	wimod_hci_add_dispatcher(wmdev, &(packet.disp));
-
-	ret = wimod_hci_send(wmdev->serdev, DEVMGMT_ID, DEVMGMT_MSG_GET_DEVICE_INFO_REQ, NULL, 0, timeout);
-	if (ret) {
-		wimod_hci_remove_dispatcher(wmdev, &(packet.disp));
-		dev_err(&wmdev->serdev->dev, "get_device_info: send failed\n");
+	ret = wimod_hci_devmgmt_send_sync(wmdev,
+		DEVMGMT_MSG_GET_DEVICE_INFO_REQ, NULL, 0,
+		DEVMGMT_MSG_GET_DEVICE_INFO_RSP, &payload, &payload_len,
+		timeout);
+	if (ret)
 		return ret;
-	}
 
-	timeout = wait_for_completion_timeout(&(packet.comp), timeout);
-	wimod_hci_remove_dispatcher(wmdev, &(packet.disp));
-	if (!timeout) {
-		dev_err(&wmdev->serdev->dev, "get_device_info: response timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	if (packet.payload_len < 1) {
-		dev_err(&wmdev->serdev->dev, "get_device_info: payload length (1)\n");
-		kfree(packet.payload);
-		return -EINVAL;
-	}
-
-	ret = wimod_hci_devmgmt_status(packet.payload[0]);
-	if (ret) {
-		dev_err(&wmdev->serdev->dev, "get_device_info: status\n");
-		kfree(packet.payload);
-		return ret;
-	}
-
-	if (packet.payload_len < 10) {
+	if (payload_len < 10) {
 		dev_err(&wmdev->serdev->dev, "get_device_info: payload length (10)\n");
-		kfree(packet.payload);
+		kfree(payload);
 		return -EINVAL;
 	}
 
 	if (buf)
-		memcpy(buf, packet.payload + 1, min(packet.payload_len - 1, 9));
+		memcpy(buf, payload + 1, min(payload_len - 1, 9));
 
-	kfree(packet.payload);
+	kfree(payload);
 	return 0;
+}
+
+static int wimod_hci_get_fw_info(struct wimod_device *wmdev, u8 **info, int *info_len, unsigned long timeout)
+{
+	u8 *payload;
+	int payload_len;
+	int ret;
+
+	if (info && !info_len)
+		return -EINVAL;
+
+	ret = wimod_hci_devmgmt_send_sync(wmdev,
+		DEVMGMT_MSG_GET_FW_INFO_REQ, NULL, 0,
+		DEVMGMT_MSG_GET_FW_INFO_RSP, &payload, &payload_len,
+		timeout);
+	if (ret)
+		return ret;
+
+	if (info) {
+		*info = payload + 1;
+		*info_len = payload_len - 1;
+	} else
+		kfree(payload);
+
+	return 0;
+}
+
+static void wimod_hci_get_fw_info_free(u8* info)
+{
+	u8 *payload = info - 1;
+
+	kfree(payload);
 }
 
 static void wimod_process_packet(struct serdev_device *sdev, const u8 *data, int len)
@@ -474,6 +499,8 @@ static int wimod_probe(struct serdev_device *sdev)
 {
 	struct wimod_device *wmdev;
 	u8 buf[9];
+	u8 *data;
+	int data_len;
 	int ret;
 
 	dev_info(&sdev->dev, "Probing");
@@ -508,6 +535,15 @@ static int wimod_probe(struct serdev_device *sdev)
 		goto err;
 	}
 	dev_info(&sdev->dev, "Module type: 0x%02x\n", (int)buf[0]);
+
+	ret = wimod_hci_get_fw_info(wmdev, &data, &data_len, HZ);
+	if (ret) {
+		dev_err(&sdev->dev, "Failed to obtain firmware info (%d)\n", ret);
+		goto err;
+	}
+	dev_info(&sdev->dev, "Firmware: %u.%u build %u '%s'\n",
+		data[1], data[0], ((u16)data[3] << 8) | data[2], data + 4);
+	wimod_hci_get_fw_info_free(data);
 
 	dev_info(&sdev->dev, "Done.\n");
 
