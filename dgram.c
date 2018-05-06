@@ -152,7 +152,7 @@ static int dgram_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return -ENOIOCTLCMD;
 }
 
-static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
+static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 {
 	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
 	struct sock *sk = sock->sk;
@@ -167,9 +167,7 @@ static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, 
 	addr->lora_family = AF_LORA;
 	addr->lora_ifindex = dgram->ifindex;
 
-	*len = sizeof(*addr);
-
-	return 0;
+	return sizeof(*addr);
 }
 
 static int dgram_release(struct socket *sock)
