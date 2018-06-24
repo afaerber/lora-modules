@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/socket.h>
+#include <linux/version.h>
 #include <net/sock.h>
 
 #include "af_lora.h"
@@ -120,7 +121,7 @@ static int dgram_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		goto err_memcpy_from_msg;
 
 	sock_tx_timestamp(sk,
-#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
 			  sk->sk_tsflags,
 #endif
 			  &skb_shinfo(skb)->tx_flags);
@@ -152,7 +153,11 @@ static int dgram_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return -ENOIOCTLCMD;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
 static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
+#else
+static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int *len, int peer)
+#endif
 {
 	struct sockaddr_lora *addr = (struct sockaddr_lora *)uaddr;
 	struct sock *sk = sock->sk;
@@ -167,7 +172,12 @@ static int dgram_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 	addr->lora_family = AF_LORA;
 	addr->lora_ifindex = dgram->ifindex;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
 	return sizeof(*addr);
+#else
+	*len = sizeof(*addr);
+	return 0;
+#endif
 }
 
 static int dgram_release(struct socket *sock)
