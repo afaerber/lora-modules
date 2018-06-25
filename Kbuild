@@ -5,6 +5,7 @@ obj-m += lora-dev.o
 lora-dev-y := dev.o
 
 obj-m += sx1276.o
+obj-m += sx1301.o
 
 ifneq ($(CONFIG_SERIAL_DEV_BUS),)
 obj-m += rak811.o
