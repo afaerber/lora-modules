@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "af_lora.h"
+#include "include/linux/lora.h"
 
 #ifndef AF_LORA
 #define AF_LORA 28
