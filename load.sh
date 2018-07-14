@@ -8,6 +8,8 @@ rmmod lora-usi
 rmmod lora-rak811
 rmmod lora-ting01m
 rmmod lora-dev
+
+rmmod nllora
 rmmod lora
 
 set -e
@@ -15,6 +17,7 @@ set -e
 BDIR=linux
 
 insmod ${BDIR}/net/lora/lora.ko
+insmod ${BDIR}/net/lora/nllora.ko
 
 insmod ${BDIR}/drivers/net/lora/lora-dev.ko
 insmod ${BDIR}/drivers/net/lora/lora-rn2483.ko dyndbg
