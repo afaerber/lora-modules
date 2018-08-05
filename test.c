@@ -24,7 +24,7 @@ int main(void)
 	int skt = socket(PF_LORA, SOCK_DGRAM, 1);
 	if (skt == -1) {
 		int err = errno;
-		printf("socket failed: %s\n", strerror(err));
+		fprintf(stderr, "socket failed: %s\n", strerror(err));
 		return 1;
 	}
 	printf("socket %d\n", skt);
@@ -34,7 +34,7 @@ int main(void)
 	int ret = ioctl(skt, SIOCGIFINDEX, &ifr);
 	if (ret == -1) {
 		int err = errno;
-		printf("ioctl failed: %s\n", strerror(err));
+		fprintf(stderr, "ioctl failed: %s\n", strerror(err));
 		return 1;
 	}
 	printf("ifindex %d\n", ifr.ifr_ifindex);
@@ -45,7 +45,7 @@ int main(void)
 	ret = bind(skt, (struct sockaddr *)&addr, sizeof(addr));
 	if (ret == -1) {
 		int err = errno;
-		printf("bind failed: %s\n", strerror(err));
+		fprintf(stderr, "bind failed: %s\n", strerror(err));
 		return 1;
 	}
 
@@ -54,7 +54,7 @@ int main(void)
 	int bytes_sent = write(skt, buf, 1);
 	if (bytes_sent == -1) {
 		int err = errno;
-		printf("write failed: %s\n", strerror(err));
+		fprintf(stderr, "write failed: %s\n", strerror(err));
 		return 1;
 	}
 	printf("bytes_sent %d\n", bytes_sent);
