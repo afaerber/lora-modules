@@ -33,7 +33,10 @@ modules_install:
 clean:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora $(MFLAGS_KCONFIG) clean
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lora $(MFLAGS_KCONFIG) clean
-	@rm -f test
+	@rm -f test nltest
 
 test: test.c
 	$(CC) -o test test.c
+
+nltest: nltest.c
+	$(CC) $(shell pkg-config --cflags --libs libnl-genl-3.0) -o nltest nltest.c
