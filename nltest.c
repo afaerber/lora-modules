@@ -15,6 +15,7 @@
 
 static struct nla_policy my_policy[NLLORA_ATTR_MAX + 1] = {
 	[NLLORA_ATTR_IFINDEX] = { .type = NLA_U32 },
+	[NLLORA_ATTR_FREQ] = { .type = NLA_U32 },
 };
 
 static int seq_check(struct nl_msg *msg, void *arg)
@@ -31,6 +32,9 @@ static int print_msg(struct nl_msg *msg, void *arg)
 	printf("received!\n");
 
 	nl_msg_dump(msg, stdout);
+
+	if (attr[NLLORA_ATTR_FREQ])
+		printf("frequency: %u\n", nla_get_u32(attr[NLLORA_ATTR_FREQ]));
 
 	return NL_OK;
 }
@@ -88,7 +92,7 @@ int main(void)
 		return 1;
 	}
 
-	ptr = genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, NLM_F_REQUEST, NLLORA_CMD_FOO, 0);
+	ptr = genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, NLM_F_REQUEST, NLLORA_CMD_GET_FREQ, 0);
 	if (ptr == NULL) {
 		fprintf(stderr, "genlmsg_put\n");
 		nlmsg_free(msg);
