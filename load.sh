@@ -17,6 +17,7 @@ rmmod lora-rf1276ts
 rmmod lora-dev
 
 rmmod nllora
+rmmod cfglora
 rmmod lora
 
 set -e
@@ -24,7 +25,7 @@ set -e
 BDIR=linux
 
 insmod ${BDIR}/net/lora/lora.ko
-insmod ${BDIR}/net/lora/nllora.ko
+insmod ${BDIR}/net/lora/cfglora.ko
 
 insmod ${BDIR}/drivers/net/lora/lora-dev.ko
 insmod ${BDIR}/drivers/net/lora/lora-rn2483.ko dyndbg
