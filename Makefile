@@ -29,6 +29,9 @@ all: test
 		$(MFLAGS_KCONFIG) \
 		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_LORA_SX125X_CON"
 
+usb:
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/usb/class cdc-acm.ko
+
 modules_install:
 	for m in $(SDIR)/net/lora $(SDIR)/drivers/net/lora; do \
 		$(MAKE) -C $(KDIR) M=$$m $(MFLAGS_KCONFIG) modules_install; \
