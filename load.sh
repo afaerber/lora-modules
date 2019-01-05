@@ -2,8 +2,10 @@
 
 rmmod lora-sx125x
 rmmod lora-sx1301
+rmmod lora-sx130x-picogw
 rmmod lora-sx130x
 rmmod lora-sx1257
+rmmod lora-picogw
 rmmod lora-sx128x
 rmmod lora-sx1276
 rmmod lora-sx127x
@@ -39,3 +41,5 @@ insmod ${BDIR}/drivers/net/lora/lora-sx127x.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx128x.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx130x.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx125x.ko dyndbg
+insmod ${BDIR}/drivers/net/lora/lora-sx130x-picogw.ko dyndbg
+insmod ${BDIR}/drivers/net/lora/lora-picogw.ko dyndbg
