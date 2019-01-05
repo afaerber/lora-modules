@@ -49,9 +49,10 @@ int main(void)
 		return 1;
 	}
 
-	char buf[1];
+	char buf[2];
 	buf[0] = 0x42;
-	int bytes_sent = write(skt, buf, 1);
+	buf[1] = 0x43;
+	int bytes_sent = write(skt, buf, 2);
 	if (bytes_sent == -1) {
 		int err = errno;
 		fprintf(stderr, "write failed: %s\n", strerror(err));
