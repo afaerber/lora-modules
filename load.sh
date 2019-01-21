@@ -16,6 +16,7 @@ rmmod lora-rak811
 rmmod lora-ting01m
 rmmod lora-mm002
 rmmod lora-rf1276ts
+rmmod lora-mipot32001353
 rmmod lora-dev
 
 rmmod nllora
@@ -37,6 +38,7 @@ insmod ${BDIR}/drivers/net/lora/lora-rak811.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-ting01m.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-mm002.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-rf1276ts.ko dyndbg
+insmod ${BDIR}/drivers/net/lora/lora-mipot32001353.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx127x.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx128x.ko dyndbg
 insmod ${BDIR}/drivers/net/lora/lora-sx130x.ko dyndbg
