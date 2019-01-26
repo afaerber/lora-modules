@@ -33,6 +33,9 @@ all: test
 fsk:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/fsk
 
+enocean:
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/enocean
+
 usb:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/usb/class cdc-acm.ko
 
@@ -45,6 +48,9 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora $(MFLAGS_KCONFIG) clean
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lora $(MFLAGS_KCONFIG) clean
 	@rm -f test nltest
+
+clean-enocean:
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/enocean clean
 
 test: test.c
 	$(CC) -o test test.c
