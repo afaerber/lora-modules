@@ -28,6 +28,7 @@ all: test
 		CFLAGS_MODULE=-I$(IDIR)
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lora \
 		$(MFLAGS_KCONFIG) \
+		KBUILD_EXTRA_SYMBOLS=$(SDIR)/net/lora/Module.symvers \
 		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_LORA_SX125X_CON"
 
 fsk:
