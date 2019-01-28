@@ -32,10 +32,12 @@ all: test
 		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_LORA_SX125X_CON"
 
 fsk:
-	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/fsk
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/fsk \
+		CFLAGS_MODULE=-I$(IDIR)
 
 enocean:
-	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/enocean
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/enocean \
+		CFLAGS_MODULE=-I$(IDIR)
 
 usb:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/usb/class cdc-acm.ko
@@ -55,6 +57,9 @@ clean-enocean:
 
 test: test.c
 	$(CC) -o test test.c
+
+txenocean: txenocean.c
+	$(CC) -o txenocean txenocean.c
 
 nltest: nltest.c
 	$(CC) $(shell pkg-config --cflags --libs libnl-genl-3.0) -o nltest nltest.c
