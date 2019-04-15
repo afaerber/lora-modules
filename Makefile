@@ -22,6 +22,8 @@ MFLAGS_KCONFIG += CONFIG_LORA_TING01M=m
 MFLAGS_KCONFIG += CONFIG_LORA_USI=m
 MFLAGS_KCONFIG += CONFIG_LORA_WIMOD=m
 
+MFLAGS_KCONFIG += CONFIG_FSK=m
+
 all: test
 #	$(MAKE) -C $(KDIR) M=$$PWD
 	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora $(MFLAGS_KCONFIG) \
@@ -32,7 +34,12 @@ all: test
 		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_LORA_SX125X_CON"
 
 fsk:
+	$(MAKE) -C $(KDIR) M=$(SDIR)/net/fsk \
+		$(MFLAGS_KCONFIG) \
+		CFLAGS_MODULE=-I$(IDIR)
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/fsk \
+		$(MFLAGS_KCONFIG) \
+		KBUILD_EXTRA_SYMBOLS=$(SDIR)/net/fsk/Module.symvers \
 		CFLAGS_MODULE=-I$(IDIR)
 
 enocean:
