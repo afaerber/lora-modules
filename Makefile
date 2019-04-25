@@ -23,6 +23,11 @@ MFLAGS_KCONFIG += CONFIG_LORA_USI=m
 MFLAGS_KCONFIG += CONFIG_LORA_WIMOD=m
 
 MFLAGS_KCONFIG += CONFIG_FSK=m
+MFLAGS_KCONFIG += CONFIG_FSK_CC1120=m
+MFLAGS_KCONFIG += CONFIG_FSK_NRF24L01P=m
+MFLAGS_KCONFIG += CONFIG_FSK_MRF89XA=m
+MFLAGS_KCONFIG += CONFIG_FSK_S2LP=m
+MFLAGS_KCONFIG += CONFIG_FSK_SI443X=m
 
 all: test
 #	$(MAKE) -C $(KDIR) M=$$PWD
@@ -58,6 +63,10 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora $(MFLAGS_KCONFIG) clean
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lora $(MFLAGS_KCONFIG) clean
 	@rm -f test nltest
+
+clean-fsk:
+	$(MAKE) -C $(KDIR) M=$(SDIR)/net/fsk $(MFLAGS_KCONFIG) clean
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/fsk $(MFLAGS_KCONFIG) clean
 
 clean-enocean:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/enocean clean
