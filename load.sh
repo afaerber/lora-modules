@@ -23,9 +23,13 @@ rmmod nllora
 rmmod cfglora
 rmmod lora
 
+rmmod cfgfsk
+
 set -e
 
 BDIR=linux
+
+insmod ${BDIR}/net/fsk/cfgfsk.ko
 
 insmod ${BDIR}/net/lora/lora.ko
 insmod ${BDIR}/net/lora/cfglora.ko

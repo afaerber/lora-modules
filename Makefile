@@ -31,12 +31,20 @@ MFLAGS_KCONFIG += CONFIG_FSK_SI443X=m
 
 all: test
 #	$(MAKE) -C $(KDIR) M=$$PWD
-	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora $(MFLAGS_KCONFIG) \
+	$(MAKE) -C $(KDIR) M=$(SDIR)/net/fsk \
+		$(MFLAGS_KCONFIG) \
+		CFLAGS_MODULE=-I$(IDIR)
+	$(MAKE) -C $(KDIR) M=$(SDIR)/net/lora \
+		$(MFLAGS_KCONFIG) \
 		CFLAGS_MODULE=-I$(IDIR)
 	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lora \
 		$(MFLAGS_KCONFIG) \
+		KBUILD_EXTRA_SYMBOLS="$(SDIR)/net/lora/Module.symvers $(SDIR)/net/fsk/Module.symvers" \
+		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_FSK -DCONFIG_LORA_SX125X_CON"
+	$(MAKE) -C $(KDIR) M=$(SDIR)/drivers/net/lorawan \
+		$(MFLAGS_KCONFIG) \
 		KBUILD_EXTRA_SYMBOLS=$(SDIR)/net/lora/Module.symvers \
-		CFLAGS_MODULE="-I$(IDIR) -DCONFIG_LORA_SX125X_CON"
+		CFLAGS_MODULE=-I$(IDIR)
 
 fsk:
 	$(MAKE) -C $(KDIR) M=$(SDIR)/net/fsk \
